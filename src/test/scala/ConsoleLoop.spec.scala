@@ -1,4 +1,7 @@
 import munit.FunSuite
+import makarchess.Main
+import makarchess.model.ChessModel
+import makarchess.view.ConsoleIO
 import scala.collection.mutable.ListBuffer
 
 class ConsoleLoopSpec extends FunSuite:
@@ -18,7 +21,7 @@ class ConsoleLoopSpec extends FunSuite:
 
   test("runGame exits on quit command") {
     val io = FakeConsole(List("quit"))
-    runGame(io)
+    Main.run(ChessModel(), io)
 
     assert(io.output.exists(_ == "White to move"))
     assertEquals(io.output.last, "Goodbye.")
@@ -26,7 +29,7 @@ class ConsoleLoopSpec extends FunSuite:
 
   test("runGame applies valid move and shows next player") {
     val io = FakeConsole(List("e2e4", "quit"))
-    runGame(io)
+    Main.run(ChessModel(), io)
 
     assert(io.output.contains("White to move"))
     assert(io.output.contains("Black to move"))
@@ -35,9 +38,9 @@ class ConsoleLoopSpec extends FunSuite:
 
   test("runGame reports parse and apply errors and keeps running") {
     val io = FakeConsole(List("bad", "e4e5", "quit"))
-    runGame(io)
+    Main.run(ChessModel(), io)
 
-    assert(io.output.exists(_.startsWith("Error: Invalid move format")))
-    assert(io.output.exists(_.startsWith("Error: No piece at source square")))
+    assert(io.output.exists(_.startsWith("Invalid move format")))
+    assert(io.output.exists(_ == "Illegal move."))
     assertEquals(io.output.last, "Goodbye.")
   }
