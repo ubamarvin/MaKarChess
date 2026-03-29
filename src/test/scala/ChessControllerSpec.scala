@@ -49,7 +49,7 @@ class ChessControllerSpec extends FunSuite:
     controller.makeMove(Position('e', 2), Position('e', 4), Some(PieceType.Knight))
     controller.makeMove(Position('e', 2), Position('e', 4), Some(PieceType.King))
 
-    assertEquals(model.snapshot.currentPlayerLine.nonEmpty, true)
+    assertEquals(controller.model.snapshot.currentPlayerLine.nonEmpty, true)
   }
 
   test("controller makeMove without promotion delegates to model") {
@@ -57,7 +57,7 @@ class ChessControllerSpec extends FunSuite:
     val controller = ChessController(model)
 
     controller.makeMove(Position('e', 2), Position('e', 4))
-    assertEquals(model.snapshot.currentPlayerLine, "Black to move")
+    assertEquals(controller.model.snapshot.currentPlayerLine, "Black to move")
   }
 
 end ChessControllerSpec

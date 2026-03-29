@@ -391,26 +391,27 @@ object ChessRules:
       else
         val c = state.castling
         val enemy = opposite(piece.color)
-        var ms = List.empty[Move]
-        if piece.color == Color.White then
-          if c.whiteKingside && squaresEmpty(state.board, List(Position('f', rank), Position('g', rank))) &&
+
+        // Functional style: build optional moves and keep only the ones whose conditions are satisfied.
+        def kingSideAllowed(right: Boolean): Boolean =
+          right && squaresEmpty(state.board, List(Position('f', rank), Position('g', rank))) &&
             !isSquareAttacked(state.board, Position('f', rank), enemy, state.enPassant) &&
             !isSquareAttacked(state.board, Position('g', rank), enemy, state.enPassant)
-          then ms = Move(from, Position('g', rank), None) :: ms
-          if c.whiteQueenside && squaresEmpty(state.board, List(Position('b', rank), Position('c', rank), Position('d', rank))) &&
+
+        def queenSideAllowed(right: Boolean): Boolean =
+          right && squaresEmpty(state.board, List(Position('b', rank), Position('c', rank), Position('d', rank))) &&
             !isSquareAttacked(state.board, Position('d', rank), enemy, state.enPassant) &&
             !isSquareAttacked(state.board, Position('c', rank), enemy, state.enPassant)
-          then ms = Move(from, Position('c', rank), None) :: ms
-        else
-          if c.blackKingside && squaresEmpty(state.board, List(Position('f', rank), Position('g', rank))) &&
-            !isSquareAttacked(state.board, Position('f', rank), enemy, state.enPassant) &&
-            !isSquareAttacked(state.board, Position('g', rank), enemy, state.enPassant)
-          then ms = Move(from, Position('g', rank), None) :: ms
-          if c.blackQueenside && squaresEmpty(state.board, List(Position('b', rank), Position('c', rank), Position('d', rank))) &&
-            !isSquareAttacked(state.board, Position('d', rank), enemy, state.enPassant) &&
-            !isSquareAttacked(state.board, Position('c', rank), enemy, state.enPassant)
-          then ms = Move(from, Position('c', rank), None) :: ms
-        ms
+
+        val (ksRight, qsRight) =
+          piece.color match
+            case Color.White => (c.whiteKingside, c.whiteQueenside)
+            case Color.Black => (c.blackKingside, c.blackQueenside)
+
+        List(
+          Option.when(kingSideAllowed(ksRight))(Move(from, Position('g', rank), None)),
+          Option.when(queenSideAllowed(qsRight))(Move(from, Position('c', rank), None))
+        ).flatten
 
   private def squaresEmpty(board: Map[Position, Piece], squares: List[Position]): Boolean =
     squares.forall(sq => !board.contains(sq))
@@ -422,40 +423,44 @@ object ChessRules:
     val isEnPassant =
       piece.kind == PieceType.Pawn && state.enPassant.contains(move.to) && captured.isEmpty
 
-    var b = state.board - move.from
-    if isEnPassant then
-      val capSq = Position(
-        move.to.file,
-        if side == Color.White then move.to.rank - 1 else move.to.rank + 1
-      )
-      // Be explicit: EP capture must remove the pawn behind the target square.
-      b = b - capSq
-    else if captured.isDefined then
-      b = b - move.to
+    val baseBoard = state.board - move.from
+
+    val afterCapture =
+      if isEnPassant then
+        val capSq =
+          Position(
+            move.to.file,
+            if side == Color.White then move.to.rank - 1 else move.to.rank + 1
+          )
+        // EP capture removes the pawn behind the target square.
+        baseBoard - capSq
+      else captured.fold(baseBoard)(_ => baseBoard - move.to)
 
     val movedPiece =
-      if piece.kind == PieceType.Pawn && move.promotion.isDefined then
-        piece.copy(kind = move.promotion.get)
-      else piece
+      (piece.kind, move.promotion) match
+        case (PieceType.Pawn, Some(promotedTo)) => piece.copy(kind = promotedTo)
+        case _                                 => piece
 
-    b = b.updated(move.to, movedPiece)
+    val afterMove = afterCapture.updated(move.to, movedPiece)
 
-    if piece.kind == PieceType.King && (move.from.file - move.to.file).abs == 2 then
-      val rank = move.from.rank
-      if move.to == Position('g', rank) then
-        val rookFrom = Position('h', rank)
-        val rookTo = Position('f', rank)
-        b.get(rookFrom).foreach { r =>
-          b = b - rookFrom
-          b = b.updated(rookTo, r)
-        }
-      else if move.to == Position('c', rank) then
-        val rookFrom = Position('a', rank)
-        val rookTo = Position('d', rank)
-        b.get(rookFrom).foreach { r =>
-          b = b - rookFrom
-          b = b.updated(rookTo, r)
-        }
+    val isCastle = piece.kind == PieceType.King && (move.from.file - move.to.file).abs == 2
+    val afterCastleRook =
+      if !isCastle then afterMove
+      else
+        val rank = move.from.rank
+        val rookShift: Option[(Position, Position)] =
+          if move.to == Position('g', rank) then Some(Position('h', rank) -> Position('f', rank))
+          else if move.to == Position('c', rank) then Some(Position('a', rank) -> Position('d', rank))
+          else None
+
+        rookShift
+          .flatMap { case (rookFrom, rookTo) =>
+            afterMove.get(rookFrom).map(r => (rookFrom, rookTo, r))
+          }
+          .map { case (rookFrom, rookTo, rook) =>
+            (afterMove - rookFrom).updated(rookTo, rook)
+          }
+          .getOrElse(afterMove)
 
     val newEp =
       if piece.kind == PieceType.Pawn && (move.from.rank - move.to.rank).abs == 2 then
@@ -475,7 +480,7 @@ object ChessRules:
       else state.fullmoveNumber
 
     ChessState(
-      board = b,
+      board = afterCastleRook,
       sideToMove = opposite(side),
       castling = newCastling,
       enPassant = newEp,
@@ -491,20 +496,36 @@ object ChessRules:
       piece: Piece,
       boardBefore: Map[Position, Piece]
   ): CastlingRights =
-    var r = rights
-    if piece.kind == PieceType.King then r = r.without(piece.color)
-    if piece.kind == PieceType.Rook then
-      if move.from == Position('h', 1) then r = r.copy(whiteKingside = false)
-      if move.from == Position('a', 1) then r = r.copy(whiteQueenside = false)
-      if move.from == Position('h', 8) then r = r.copy(blackKingside = false)
-      if move.from == Position('a', 8) then r = r.copy(blackQueenside = false)
-    boardBefore.get(move.to).foreach { cap =>
-      if cap.kind == PieceType.Rook then
-        if move.to == Position('h', 1) then r = r.copy(whiteKingside = false)
-        if move.to == Position('a', 1) then r = r.copy(whiteQueenside = false)
-        if move.to == Position('h', 8) then r = r.copy(blackKingside = false)
-        if move.to == Position('a', 8) then r = r.copy(blackQueenside = false)
-    }
-    r
+    val afterKingMove =
+      if piece.kind == PieceType.King then rights.without(piece.color) else rights
+
+    def disableIfFrom(pos: Position)(update: CastlingRights => CastlingRights): CastlingRights => CastlingRights =
+      r => if move.from == pos then update(r) else r
+
+    def disableIfTo(pos: Position)(update: CastlingRights => CastlingRights): CastlingRights => CastlingRights =
+      r => if move.to == pos then update(r) else r
+
+    val rookMovedUpdates: List[CastlingRights => CastlingRights] =
+      if piece.kind != PieceType.Rook then Nil
+      else
+        List(
+          disableIfFrom(Position('h', 1))(_.copy(whiteKingside = false)),
+          disableIfFrom(Position('a', 1))(_.copy(whiteQueenside = false)),
+          disableIfFrom(Position('h', 8))(_.copy(blackKingside = false)),
+          disableIfFrom(Position('a', 8))(_.copy(blackQueenside = false))
+        )
+
+    val rookCapturedUpdates: List[CastlingRights => CastlingRights] =
+      boardBefore.get(move.to) match
+        case Some(cap) if cap.kind == PieceType.Rook =>
+          List(
+            disableIfTo(Position('h', 1))(_.copy(whiteKingside = false)),
+            disableIfTo(Position('a', 1))(_.copy(whiteQueenside = false)),
+            disableIfTo(Position('h', 8))(_.copy(blackKingside = false)),
+            disableIfTo(Position('a', 8))(_.copy(blackQueenside = false))
+          )
+        case _ => Nil
+
+    (rookMovedUpdates ++ rookCapturedUpdates).foldLeft(afterKingMove) { (r, f) => f(r) }
 
 end ChessRules

@@ -1,19 +1,9 @@
 import munit.FunSuite
 
-import makarchess.model.{CastlingRights, ChessModel, ChessRules, ChessState, Color, GamePhase, GameSnapshot, MoveAttemptError, Piece, PieceType, Position, PositionKey}
+import makarchess.model.{CastlingRights, ChessModel, ChessRules, ChessState, Color, GamePhase, MoveAttemptError, Piece, PieceType, Position, PositionKey}
 import makarchess.util.Observer
 
 class ChessModelSpec extends FunSuite:
-
-  private def setModelState(model: ChessModel, newState: ChessState): Unit =
-    val fieldOpt =
-      model.getClass.getDeclaredFields.find(f => f.getType.getName == classOf[ChessState].getName && f.getName.contains("state"))
-
-    val field =
-      fieldOpt.getOrElse(model.getClass.getDeclaredFields.find(_.getType == classOf[ChessState]).get)
-
-    field.setAccessible(true)
-    field.set(model, newState)
 
   private def baseState(
       board: Map[Position, Piece],
@@ -35,13 +25,14 @@ class ChessModelSpec extends FunSuite:
     )
 
   test("restart notifies observers") {
-    val model = ChessModel()
+    val model0 = ChessModel()
     var updates = 0
     val observer = new Observer:
       override def update: Unit = updates += 1
 
-    model.add(observer)
-    model.restart()
+    model0.add(observer)
+    val model1 = model0.restart()
+    model1.notifyObservers
 
     assertEquals(updates, 1)
   }
@@ -51,8 +42,7 @@ class ChessModelSpec extends FunSuite:
       Position('e', 1) -> Piece(Color.White, PieceType.King),
       Position('e', 8) -> Piece(Color.Black, PieceType.Rook)
     )
-    val model = ChessModel()
-    setModelState(model, baseState(board, Color.White, GamePhase.InProgress))
+    val model = ChessModel.fromState(baseState(board, Color.White, GamePhase.InProgress))
 
     val snap = model.snapshot
     assertEquals(snap.statusLine, "Check.")
@@ -64,27 +54,26 @@ class ChessModelSpec extends FunSuite:
       Position('e', 1) -> Piece(Color.White, PieceType.King),
       Position('a', 8) -> Piece(Color.Black, PieceType.King)
     )
-    val model = ChessModel()
 
-    setModelState(model, baseState(board, Color.White, GamePhase.Checkmate(Color.White)))
-    assertEquals(model.snapshot.statusLine, "Checkmate. White wins.")
-    assertEquals(model.snapshot.currentPlayerLine, "")
+    val mMate = ChessModel.fromState(baseState(board, Color.White, GamePhase.Checkmate(Color.White)))
+    assertEquals(mMate.snapshot.statusLine, "Checkmate. White wins.")
+    assertEquals(mMate.snapshot.currentPlayerLine, "")
 
-    setModelState(model, baseState(board, Color.White, GamePhase.Stalemate))
-    assertEquals(model.snapshot.statusLine, "Stalemate. Draw.")
-    assertEquals(model.snapshot.currentPlayerLine, "")
+    val mStale = ChessModel.fromState(baseState(board, Color.White, GamePhase.Stalemate))
+    assertEquals(mStale.snapshot.statusLine, "Stalemate. Draw.")
+    assertEquals(mStale.snapshot.currentPlayerLine, "")
 
-    setModelState(model, baseState(board, Color.White, GamePhase.DrawFiftyMoveRule))
-    assertEquals(model.snapshot.statusLine, "Draw by fifty-move rule.")
-    assertEquals(model.snapshot.currentPlayerLine, "")
+    val m50 = ChessModel.fromState(baseState(board, Color.White, GamePhase.DrawFiftyMoveRule))
+    assertEquals(m50.snapshot.statusLine, "Draw by fifty-move rule.")
+    assertEquals(m50.snapshot.currentPlayerLine, "")
 
-    setModelState(model, baseState(board, Color.White, GamePhase.DrawThreefoldRepetition))
-    assertEquals(model.snapshot.statusLine, "Draw by threefold repetition.")
-    assertEquals(model.snapshot.currentPlayerLine, "")
+    val m3 = ChessModel.fromState(baseState(board, Color.White, GamePhase.DrawThreefoldRepetition))
+    assertEquals(m3.snapshot.statusLine, "Draw by threefold repetition.")
+    assertEquals(m3.snapshot.currentPlayerLine, "")
 
-    setModelState(model, baseState(board, Color.White, GamePhase.DrawInsufficientMaterial))
-    assertEquals(model.snapshot.statusLine, "Draw by insufficient material.")
-    assertEquals(model.snapshot.currentPlayerLine, "")
+    val mIns = ChessModel.fromState(baseState(board, Color.White, GamePhase.DrawInsufficientMaterial))
+    assertEquals(mIns.snapshot.statusLine, "Draw by insufficient material.")
+    assertEquals(mIns.snapshot.currentPlayerLine, "")
   }
 
   test("tryMove returns GameAlreadyOver when phase is not InProgress") {
@@ -92,8 +81,7 @@ class ChessModelSpec extends FunSuite:
       Position('e', 1) -> Piece(Color.White, PieceType.King),
       Position('a', 8) -> Piece(Color.Black, PieceType.King)
     )
-    val model = ChessModel()
-    setModelState(model, baseState(board, Color.White, GamePhase.Stalemate))
+    val model = ChessModel.fromState(baseState(board, Color.White, GamePhase.Stalemate))
 
     val res = model.tryMove("e2e4")
     assertEquals(res, Left(MoveAttemptError.GameAlreadyOver))

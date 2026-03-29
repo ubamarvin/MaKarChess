@@ -7,7 +7,7 @@ import makarchess.view.{ConsoleIO, StdConsoleIO, TuiView}
 object Main:
 
   def main(args: Array[String]): Unit =
-    run(new ChessModel(), StdConsoleIO())
+    run(ChessModel(), StdConsoleIO())
 
   def run(model: ChessModel, io: ConsoleIO): Unit =
     val controller = ChessController(model)

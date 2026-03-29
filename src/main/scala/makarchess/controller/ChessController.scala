@@ -3,19 +3,31 @@ package makarchess.controller
 import makarchess.model.{ChessModel, GameSnapshot, MoveAttemptError, PieceType, Position}
 
 /** Translates user intents into model operations. Does not own game state (see specs). */
-class ChessController(val model: ChessModel):
+class ChessController(initialModel: ChessModel):
+
+  private var currentModel: ChessModel = initialModel
+
+  def model: ChessModel =
+    currentModel
 
   def snapshot: GameSnapshot =
-    model.snapshot
+    currentModel.snapshot
 
   def handleMoveInput(input: String): Either[MoveAttemptError, Unit] =
-    model.tryMove(input)
+    currentModel.tryMove(input) match
+      case Left(err) => Left(err)
+      case Right(next) =>
+        currentModel = next
+        currentModel.notifyObservers
+        Right(())
 
   def startNewGame(): Unit =
-    model.restart()
+    currentModel = currentModel.restart()
+    currentModel.notifyObservers
 
   def restartGame(): Unit =
-    model.restart()
+    currentModel = currentModel.restart()
+    currentModel.notifyObservers
 
   def quitGame(): Unit = ()
 
@@ -44,7 +56,11 @@ class ChessController(val model: ChessModel):
       promotion match
         case None    => base
         case Some(p) => base + pieceTypeToPromotionChar(p)
-    model.tryMove(uci)
+    currentModel.tryMove(uci) match
+      case Left(_)     => ()
+      case Right(next) =>
+        currentModel = next
+        currentModel.notifyObservers
     ()
 
   private def pieceTypeToPromotionChar(pt: PieceType): Char =

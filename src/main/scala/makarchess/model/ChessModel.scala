@@ -12,23 +12,28 @@ case class GameSnapshot(
 
 object ChessModel:
 
+  def apply(): ChessModel =
+    new ChessModel(ChessRules.initialState, Observable())
+
+  def fromState(state: ChessState): ChessModel =
+    new ChessModel(state, Observable())
+
   def formatError(error: MoveAttemptError): String =
     error match
       case MoveAttemptError.InvalidInput    => "Invalid move format. Use e2e4 or e7e8q."
       case MoveAttemptError.IllegalMove     => "Illegal move."
       case MoveAttemptError.GameAlreadyOver => "The game is already over."
 
-class ChessModel private (private var state: ChessState) extends Observable:
+final class ChessModel private (private val state: ChessState, private val observable: Observable):
 
-  def this() = this(ChessRules.initialState)
+  export observable.{add, notifyObservers, remove}
 
   def snapshot: GameSnapshot =
     buildSnapshot(state)
 
   /** Reset to the standard starting position and notify observers. */
-  def restart(): Unit =
-    state = ChessRules.initialState
-    notifyObservers
+  def restart(): ChessModel =
+    new ChessModel(ChessRules.initialState, observable)
 
   private def buildSnapshot(state: ChessState): GameSnapshot =
     val boardText = ChessRules.renderBoard(state.board)
@@ -62,7 +67,7 @@ class ChessModel private (private var state: ChessState) extends Observable:
       case Color.Black => "Black to move"
 
   /** Parses and applies a move; notifies observers only after a successful, legal move. */
-  def tryMove(input: String): Either[MoveAttemptError, Unit] =
+  def tryMove(input: String): Either[MoveAttemptError, ChessModel] =
     if state.phase != GamePhase.InProgress then Left(MoveAttemptError.GameAlreadyOver)
     else
       ChessRules.parseUci(input) match
@@ -71,9 +76,10 @@ class ChessModel private (private var state: ChessState) extends Observable:
           val legal = ChessRules.legalMoves(state)
           if !legal.exists(sameMove(_, move)) then Left(MoveAttemptError.IllegalMove)
           else
-            state = ChessRules.applyLegalMove(state, move)
-            notifyObservers
-            Right(())
+            val nextState = ChessRules.applyLegalMove(state, move)
+            Right(new ChessModel(nextState, observable))
 
   private def sameMove(a: Move, b: Move): Boolean =
     a.from == b.from && a.to == b.to && a.promotion == b.promotion
+
+end ChessModel
