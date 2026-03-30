@@ -71,16 +71,19 @@ object ChessRules:
     (Seq(s"  $files") ++ rows ++ Seq(s"  $files")).mkString("\n")
 
   def renderPiece(piece: Piece): Char =
-    val sym = piece.kind match
-      case PieceType.King   => 'k'
-      case PieceType.Queen  => 'q'
-      case PieceType.Rook   => 'r'
-      case PieceType.Bishop => 'b'
-      case PieceType.Knight => 'n'
-      case PieceType.Pawn   => 'p'
-    piece.color match
-      case Color.White => sym.toUpper
-      case Color.Black => sym
+    (piece.color, piece.kind) match
+      case (Color.White, PieceType.King)   => '♔'
+      case (Color.White, PieceType.Queen)  => '♕'
+      case (Color.White, PieceType.Rook)   => '♖'
+      case (Color.White, PieceType.Bishop) => '♗'
+      case (Color.White, PieceType.Knight) => '♘'
+      case (Color.White, PieceType.Pawn)   => '♙'
+      case (Color.Black, PieceType.King)   => '♚'
+      case (Color.Black, PieceType.Queen)  => '♛'
+      case (Color.Black, PieceType.Rook)   => '♜'
+      case (Color.Black, PieceType.Bishop) => '♝'
+      case (Color.Black, PieceType.Knight) => '♞'
+      case (Color.Black, PieceType.Pawn)   => '♟'
 
   def legalMoves(state: ChessState): List[Move] =
     pseudoLegalMoves(state).filter(m => !leavesOwnKingInCheck(state, m))

@@ -28,6 +28,9 @@ final class ChessModel private (private val state: ChessState, private val obser
 
   export observable.{add, notifyObservers, remove}
 
+  def chessState: ChessState =
+    state
+
   def snapshot: GameSnapshot =
     buildSnapshot(state)
 

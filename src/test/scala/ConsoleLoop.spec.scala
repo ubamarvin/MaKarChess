@@ -36,6 +36,16 @@ class ConsoleLoopSpec extends FunSuite:
     assertEquals(io.output.last, "Goodbye.")
   }
 
+  test("runGame with bot enabled replies automatically") {
+    val io = FakeConsole(List("e2e4", "quit"))
+    Main.run(ChessModel(), io, botPlays = Some(makarchess.model.Color.Black))
+
+    val whiteLines = io.output.count(_ == "White to move")
+    assert(whiteLines >= 2)
+    assert(io.output.contains("Black to move"))
+    assertEquals(io.output.last, "Goodbye.")
+  }
+
   test("runGame reports parse and apply errors and keeps running") {
     val io = FakeConsole(List("bad", "e4e5", "quit"))
     Main.run(ChessModel(), io)
