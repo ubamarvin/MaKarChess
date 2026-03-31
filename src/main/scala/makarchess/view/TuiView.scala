@@ -29,8 +29,66 @@ class TuiView(controller: ChessController, io: ConsoleIO) extends Observer:
     }
 
     merged.foreach(io.printLine)
+
+    controller.opponentModelStatusMessage.foreach(io.printLine)
+
+    controller.opponentModelPrediction.foreach { p =>
+      io.printLine("")
+      io.printLine("Predictions")
+      predictionBoard(p).foreach(io.printLine)
+      predictionLegend(p).foreach(io.printLine)
+    }
+
+    controller.opponentModelStyleEstimate.foreach { est =>
+      val side = controller.opponentModelModeledSide.map(_.toString.toLowerCase).getOrElse("?")
+      io.printLine(
+        f"Style (modeled $side): Agg ${est.aggressivePct}%.0f%% | Greed ${est.greedyPct}%.0f%% | Def ${est.defensivePct}%.0f%% | Risk ${est.riskTolerancePct}%.0f%% | Conf ${est.confidencePct}%.0f%%"
+      )
+    }
+
     if s.statusLine.nonEmpty then io.printLine(s.statusLine)
     if s.currentPlayerLine.nonEmpty then io.printLine(s.currentPlayerLine)
+
+  private def predictionBoard(p: makarchess.opponentmodel.PredictionResult): List[String] =
+    val state = controller.model.chessState
+    val base = ChessRules.renderBoard(state.board).split("\n").toVector
+    val highlights = p.highlights.map(h => (h.position, h.label)).toMap
+    base
+      .map { line =>
+        val trimmed = line.stripLeading
+        if trimmed.isEmpty then line
+        else if !(trimmed.head.isDigit) then line
+        else
+          val rankChar = trimmed.head
+          val rank = rankChar.asDigit
+          val prefixLen = line.indexOf(rankChar) + 2
+          val prefix = line.take(prefixLen)
+          val rest = line.drop(prefixLen)
+          val tokens = rest.split(" ").toVector
+          val newTokens =
+            ('a' to 'h').zipWithIndex.map { case (file, idx) =>
+              val pos = makarchess.model.Position(file, rank)
+              highlights.get(pos) match
+                case None => tokens.lift(idx).getOrElse(".")
+                case Some(lbl) => lbl
+            }.mkString(" ")
+          val suffix =
+            if tokens.size >= 8 then " " + rankChar.toString
+            else ""
+          prefix + newTokens + suffix
+      }
+      .toList
+
+  private def predictionLegend(p: makarchess.opponentmodel.PredictionResult): List[String] =
+    val state = controller.model.chessState
+    val entries =
+      p.predictions.take(p.highlights.size).zipWithIndex.map { case (pm, idx) =>
+        val label = (idx + 1).toString
+        val pieceChar = state.board.get(pm.move.from).map(ChessRules.renderPiece).getOrElse('?')
+        s"$label = $pieceChar ${pm.move.from.file}${pm.move.from.rank}${pm.move.to.file}${pm.move.to.rank}"
+      }
+    if entries.isEmpty then Nil
+    else "Legend" :: entries.toList
 
   private def capturedPanel(state: ChessState, height: Int): List[String] =
     val (whiteCaptured, blackCaptured) = capturedPieces(state)
