@@ -4,6 +4,7 @@ import makarchess.controller.ChessController
 import makarchess.model.{ChessModel, Color}
 import makarchess.opponentmodel.OpponentModelObserver
 import makarchess.util.bot.{BotCaller, BotFactory}
+import makarchess.view.GuiLauncher
 import makarchess.view.{ConsoleIO, StdConsoleIO, TuiView}
 
 object Main:
@@ -32,7 +33,11 @@ object Main:
       args.toList.collectFirst { case s if s.startsWith("--bot-type=") => s.drop("--bot-type=".length) }
         .getOrElse("random")
 
-    run(ChessModel(), StdConsoleIO(), botColor, botType, modeledSide, modeledMinMoves)
+    val enableGui =
+      args.toList.contains("--gui") ||
+        sys.props.get("gui").exists(v => v.trim.equalsIgnoreCase("true") || v.trim == "1")
+
+    run(ChessModel(), StdConsoleIO(), botColor, botType, modeledSide, modeledMinMoves, enableGui)
 
   def run(
       model: ChessModel,
@@ -40,9 +45,13 @@ object Main:
       botPlays: Option[Color] = None,
       botType: String = "random",
       modeledSide: Option[Color] = None,
-      modeledMinMoves: Int = 5
+      modeledMinMoves: Int = 5,
+      enableGui: Boolean = false
   ): Unit =
     val controller = ChessController(model)
+
+    if enableGui then
+      GuiLauncher.start(controller)
 
     modeledSide.foreach { side =>
       controller.setOpponentModelModeledSide(Some(side))

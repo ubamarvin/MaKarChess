@@ -3,6 +3,7 @@ package makarchess.controller
 import makarchess.opponentmodel.HighlightSquare
 import makarchess.opponentmodel.{PredictionResult, StyleEstimate}
 import makarchess.model.{ChessModel, Color, GameSnapshot, MoveAttemptError, PieceType, Position}
+import makarchess.util.MoveResult
 
 /** Translates user intents into model operations. Does not own game state (see specs). */
 class ChessController(initialModel: ChessModel):
@@ -59,13 +60,13 @@ class ChessController(initialModel: ChessModel):
   def setOpponentModelStatusMessage(m: Option[String]): Unit =
     opponentModelStatusMessageState = m
 
-  def handleMoveInput(input: String): Either[MoveAttemptError, Unit] =
+  def handleMoveInput(input: String): MoveResult[Unit] =
     currentModel.tryMove(input) match
-      case Left(err) => Left(err)
-      case Right(next) =>
+      case MoveResult.Err(err) => MoveResult.Err(err)
+      case MoveResult.Ok(next) =>
         currentModel = next
         currentModel.notifyObservers
-        Right(())
+        MoveResult.pure(())
 
   def startNewGame(): Unit =
     currentModel = currentModel.restart()
@@ -103,8 +104,8 @@ class ChessController(initialModel: ChessModel):
         case None    => base
         case Some(p) => base + pieceTypeToPromotionChar(p)
     currentModel.tryMove(uci) match
-      case Left(_)     => ()
-      case Right(next) =>
+      case MoveResult.Err(_) => ()
+      case MoveResult.Ok(next) =>
         currentModel = next
         currentModel.notifyObservers
     ()

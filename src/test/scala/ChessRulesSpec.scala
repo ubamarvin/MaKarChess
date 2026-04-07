@@ -1,6 +1,7 @@
 import munit.FunSuite
 
 import makarchess.model.{CastlingRights, ChessRules, ChessState, Color, GamePhase, Move, MoveAttemptError, Piece, PieceType, Position, PositionKey}
+import makarchess.util.MoveResult
 
 class ChessRulesSpec extends FunSuite:
 
@@ -29,7 +30,7 @@ class ChessRulesSpec extends FunSuite:
 
   test("parseUci rejects invalid promotion character") {
     val result = ChessRules.parseUci("e7e8x")
-    assertEquals(result, Left(MoveAttemptError.InvalidInput))
+    assertEquals(result, MoveResult.Err(MoveAttemptError.InvalidInput))
   }
 
   test("promotion move updates piece kind on applyLegalMove") {

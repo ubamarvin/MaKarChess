@@ -1,6 +1,7 @@
 import munit.FunSuite
 
-import makarchess.model.{CastlingRights, ChessModel, ChessRules, ChessState, Color, GamePhase, MoveAttemptError, Piece, PieceType, Position, PositionKey}
+import makarchess.model.{CastlingRights, ChessModel, ChessState, Color, GamePhase, MoveAttemptError, Piece, PieceType, Position, PositionKey}
+import makarchess.util.MoveResult
 import makarchess.util.Observer
 
 class ChessModelSpec extends FunSuite:
@@ -84,7 +85,7 @@ class ChessModelSpec extends FunSuite:
     val model = ChessModel.fromState(baseState(board, Color.White, GamePhase.Stalemate))
 
     val res = model.tryMove("e2e4")
-    assertEquals(res, Left(MoveAttemptError.GameAlreadyOver))
+    assertEquals(res, MoveResult.Err(MoveAttemptError.GameAlreadyOver))
   }
 
 end ChessModelSpec

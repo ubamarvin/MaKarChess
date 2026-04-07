@@ -1,6 +1,7 @@
 package makarchess.model
 
 import scala.annotation.tailrec
+import makarchess.util.MoveResult
 
 /** Pure chess rules: move generation, legality, and state transitions. */
 object ChessRules:
@@ -37,9 +38,9 @@ object ChessRules:
     val blackBack = blackBackRank.map { case (f, p) => Position(f, 8) -> p }
     (whiteBack ++ blackBack ++ whitePawns ++ blackPawns).toMap
 
-  def parseUci(input: String): Either[MoveAttemptError, Move] =
+  def parseUci(input: String): MoveResult[Move] =
     val s = input.trim.toLowerCase
-    if s.length != 4 && s.length != 5 then Left(MoveAttemptError.InvalidInput)
+    if s.length != 4 && s.length != 5 then MoveResult.fail(MoveAttemptError.InvalidInput)
     else
       val promo =
         if s.length == 5 then
@@ -50,14 +51,17 @@ object ChessRules:
             case 'n' => Some(PieceType.Knight)
             case _   => None
         else None
-      if s.length == 5 && promo.isEmpty then Left(MoveAttemptError.InvalidInput)
+      if s.length == 5 && promo.isEmpty then MoveResult.fail(MoveAttemptError.InvalidInput)
       else
-        Position.from(s(0), s(1).asDigit) match
-          case Left(_) => Left(MoveAttemptError.InvalidInput)
-          case Right(from) =>
-            Position.from(s(2), s(3).asDigit) match
-              case Left(_) => Left(MoveAttemptError.InvalidInput)
-              case Right(to) => Right(Move(from, to, promo))
+        def toPos(file: Char, rank: Int): MoveResult[Position] =
+          val f = file.toLower
+          if f >= 'a' && f <= 'h' && rank >= 1 && rank <= 8 then MoveResult.pure(Position(f, rank))
+          else MoveResult.fail(MoveAttemptError.InvalidInput)
+
+        for
+          from <- toPos(s(0), s(1).asDigit)
+          to <- toPos(s(2), s(3).asDigit)
+        yield Move(from, to, promo)
 
   def renderBoard(board: Map[Position, Piece]): String =
     val files = ('a' to 'h').mkString(" ")

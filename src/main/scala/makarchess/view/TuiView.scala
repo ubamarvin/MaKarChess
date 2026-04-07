@@ -3,6 +3,7 @@ package makarchess.view
 import makarchess.controller.ChessController
 import makarchess.model.{ChessModel, ChessRules, ChessState, Color, Piece, PieceType}
 import makarchess.util.Observer
+import makarchess.util.MoveResult
 
 trait ConsoleIO:
   def readLine(): Option[String]
@@ -160,10 +161,10 @@ class TuiView(controller: ChessController, io: ConsoleIO) extends Observer:
             io.printLine("Goodbye.")
           else
             controller.handleMoveInput(input) match
-              case Left(err) =>
+              case MoveResult.Err(err) =>
                 io.printLine(ChessModel.formatError(err))
                 loop()
-              case Right(()) =>
+              case MoveResult.Ok(()) =>
                 loop()
 
     loop()

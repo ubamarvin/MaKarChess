@@ -2,6 +2,7 @@ import munit.FunSuite
 
 import makarchess.controller.ChessController
 import makarchess.model.{ChessModel, Color, MoveAttemptError, PieceType, Position}
+import makarchess.util.MoveResult
 
 class ChessControllerSpec extends FunSuite:
 
@@ -10,15 +11,15 @@ class ChessControllerSpec extends FunSuite:
     val controller = ChessController(model)
 
     val res = controller.handleMoveInput("e2e4")
-    assertEquals(res, Right(()))
+    assertEquals(res, MoveResult.Ok(()))
   }
 
   test("controller handleMoveInput returns errors for invalid/illegal moves") {
     val model = ChessModel()
     val controller = ChessController(model)
 
-    assertEquals(controller.handleMoveInput("bad"), Left(MoveAttemptError.InvalidInput))
-    assertEquals(controller.handleMoveInput("e2e5"), Left(MoveAttemptError.IllegalMove))
+    assertEquals(controller.handleMoveInput("bad"), MoveResult.Err(MoveAttemptError.InvalidInput))
+    assertEquals(controller.handleMoveInput("e2e5"), MoveResult.Err(MoveAttemptError.IllegalMove))
   }
 
   test("controller methods are callable (coverage for empty branches)") {

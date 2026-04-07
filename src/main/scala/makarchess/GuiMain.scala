@@ -1,0 +1,3 @@
+package makarchess
+
+object GuiMain

@@ -1,6 +1,7 @@
 package makarchess.model
 
 import makarchess.util.Observable
+import makarchess.util.MoveResult
 
 case class GameSnapshot(
     boardText: String,
@@ -70,17 +71,18 @@ final class ChessModel private (private val state: ChessState, private val obser
       case Color.Black => "Black to move"
 
   /** Parses and applies a move; notifies observers only after a successful, legal move. */
-  def tryMove(input: String): Either[MoveAttemptError, ChessModel] =
-    if state.phase != GamePhase.InProgress then Left(MoveAttemptError.GameAlreadyOver)
+  def tryMove(input: String): MoveResult[ChessModel] =
+    if state.phase != GamePhase.InProgress then MoveResult.fail(MoveAttemptError.GameAlreadyOver)
     else
-      ChessRules.parseUci(input) match
-        case Left(e) => Left(e)
-        case Right(move) =>
+      for
+        move <- ChessRules.parseUci(input)
+        _ <-
           val legal = ChessRules.legalMoves(state)
-          if !legal.exists(sameMove(_, move)) then Left(MoveAttemptError.IllegalMove)
-          else
-            val nextState = ChessRules.applyLegalMove(state, move)
-            Right(new ChessModel(nextState, observable))
+          if !legal.exists(sameMove(_, move)) then MoveResult.fail(MoveAttemptError.IllegalMove)
+          else MoveResult.pure(())
+      yield
+        val nextState = ChessRules.applyLegalMove(state, move)
+        new ChessModel(nextState, observable)
 
   private def sameMove(a: Move, b: Move): Boolean =
     a.from == b.from && a.to == b.to && a.promotion == b.promotion
