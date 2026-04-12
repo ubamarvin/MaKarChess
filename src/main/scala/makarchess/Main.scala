@@ -3,6 +3,10 @@ package makarchess
 import makarchess.controller.ChessController
 import makarchess.model.{ChessModel, Color}
 import makarchess.opponentmodel.OpponentModelObserver
+import makarchess.parser.api.ParserBackend
+import makarchess.parser.ParserModule
+import makarchess.persistence.{FenFileService, GameStateJsonService, LocalFileIO, PgnFileService}
+import makarchess.serialization.UpickleGameStateJsonCodec
 import makarchess.util.bot.{BotCaller, BotFactory}
 import makarchess.view.GuiLauncher
 import makarchess.view.{ConsoleIO, StdConsoleIO, TuiView}
@@ -48,10 +52,18 @@ object Main:
       modeledMinMoves: Int = 5,
       enableGui: Boolean = false
   ): Unit =
-    val controller = ChessController(model)
-
-    if enableGui then
-      GuiLauncher.start(controller)
+    val fileIO = LocalFileIO()
+    // Dependcy injection for parsers
+    val fenParser = ParserModule.fenParser(ParserBackend.Fast)
+    val pgnParser = ParserModule.pgnParser(ParserBackend.Fast)
+    val controller = new ChessController(
+      model,
+      fenParser,
+      pgnParser,
+      FenFileService(fileIO, fenParser),
+      PgnFileService(fileIO, pgnParser),
+      GameStateJsonService(fileIO, UpickleGameStateJsonCodec())
+    )
 
     modeledSide.foreach { side =>
       controller.setOpponentModelModeledSide(Some(side))
@@ -70,5 +82,7 @@ object Main:
       ()
     }
 
-    model.notifyObservers
+    controller.model.notifyObservers
+    if enableGui then
+      GuiLauncher.start(controller)
     tui.runInteractive()

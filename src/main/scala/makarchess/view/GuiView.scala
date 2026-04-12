@@ -1,7 +1,8 @@
 package makarchess.view
 
+import javafx.event.{ActionEvent as JfxActionEvent, EventHandler}
 import makarchess.controller.ChessController
-import makarchess.model.{ChessRules, ChessState, Piece, Position}
+import makarchess.model.{ChessRules, ChessState, Position}
 import makarchess.util.{MoveResult, Observer}
 
 import scalafx.Includes.*
@@ -28,6 +29,29 @@ final class GuiView(controller: ChessController) extends Observer:
 
   private val moveButton = new Button("Move")
 
+  private val fenField = new TextField:
+    promptText = "FEN string"
+
+  private val fenButton = new Button("Load FEN")
+
+  private val pgnField = new TextField:
+    promptText = "PGN string"
+
+  private val pgnButton = new Button("Load PGN")
+
+  private val fileField = new TextField:
+    promptText = "/path/to/file.fen or .pgn"
+
+  private val fenFileButton = new Button("Load FEN File")
+
+  private val pgnFileButton = new Button("Load PGN File")
+
+  private val replayBackButton = new Button("<")
+
+  private val replayForwardButton = new Button(">")
+
+  private val replayLabel = new Label("Replay: inactive")
+
   private val boardGrid = new GridPane:
     hgap = 4
     vgap = 4
@@ -41,18 +65,58 @@ final class GuiView(controller: ChessController) extends Observer:
       children = Seq(statusLabel, currentPlayerLabel, messageLabel)
     }
     center = boardGrid
-    bottom = new HBox(8) {
+    bottom = new VBox(8) {
       padding = Insets(8, 0, 0, 0)
-      children = Seq(new Label("UCI:"), inputField, moveButton)
+      children = Seq(
+        new HBox(8) {
+          children = Seq(new Label("UCI:"), inputField, moveButton)
+        },
+        new HBox(8) {
+          children = Seq(new Label("FEN:"), fenField, fenButton)
+        },
+        new HBox(8) {
+          children = Seq(new Label("PGN:"), pgnField, pgnButton)
+        },
+        new HBox(8) {
+          children = Seq(new Label("File:"), fileField, fenFileButton, pgnFileButton)
+        },
+        new HBox(8) {
+          children = Seq(new Label("Replay:"), replayBackButton, replayForwardButton, replayLabel)
+        }
+      )
     }
 
   def root: Parent = rootPane
 
-  moveButton.onAction = (_: scalafx.event.ActionEvent) =>
-    submitMove()
+  moveButton.onAction = new EventHandler[JfxActionEvent]:
+    override def handle(event: JfxActionEvent): Unit = submitMove()
 
-  inputField.onAction = (_: scalafx.event.ActionEvent) =>
-    submitMove()
+  inputField.onAction = new EventHandler[JfxActionEvent]:
+    override def handle(event: JfxActionEvent): Unit = submitMove()
+
+  fenButton.onAction = new EventHandler[JfxActionEvent]:
+    override def handle(event: JfxActionEvent): Unit = submitFen()
+
+  fenField.onAction = new EventHandler[JfxActionEvent]:
+    override def handle(event: JfxActionEvent): Unit = submitFen()
+
+  pgnButton.onAction = new EventHandler[JfxActionEvent]:
+    override def handle(event: JfxActionEvent): Unit = submitPgn()
+
+  pgnField.onAction = new EventHandler[JfxActionEvent]:
+    override def handle(event: JfxActionEvent): Unit = submitPgn()
+
+  fenFileButton.onAction = new EventHandler[JfxActionEvent]:
+    override def handle(event: JfxActionEvent): Unit = loadFenFile()
+
+  pgnFileButton.onAction = new EventHandler[JfxActionEvent]:
+    override def handle(event: JfxActionEvent): Unit = loadPgnFile()
+
+  replayBackButton.onAction = new EventHandler[JfxActionEvent]:
+    override def handle(event: JfxActionEvent): Unit = stepReplayBackward()
+
+  replayForwardButton.onAction = new EventHandler[JfxActionEvent]:
+    override def handle(event: JfxActionEvent): Unit = stepReplayForward()
 
   private def submitMove(): Unit =
     val raw = inputField.text.value
@@ -66,11 +130,79 @@ final class GuiView(controller: ChessController) extends Observer:
         case MoveResult.Err(err) =>
           messageLabel.text = makarchess.model.ChessModel.formatError(err)
 
+  private def submitFen(): Unit =
+    val raw = fenField.text.value
+    val fen = if raw == null then "" else raw.trim
+    if fen.nonEmpty then
+      controller.loadFenFromString(fen) match
+        case Right(_) =>
+          selectedFrom = None
+          messageLabel.text = "FEN loaded."
+          fenField.text = ""
+        case Left(err) =>
+          messageLabel.text = err
+
+  private def submitPgn(): Unit =
+    val raw = pgnField.text.value
+    val pgn = if raw == null then "" else raw.trim
+    if pgn.nonEmpty then
+      controller.loadReplayFromPgnString(pgn) match
+        case Right(_) =>
+          selectedFrom = None
+          messageLabel.text = "PGN replay loaded."
+          pgnField.text = ""
+        case Left(err) =>
+          messageLabel.text = err
+
+  private def loadFenFile(): Unit =
+    val raw = fileField.text.value
+    val path = if raw == null then "" else raw.trim
+    if path.nonEmpty then
+      controller.loadFenFromFile(path) match
+        case Right(_) =>
+          selectedFrom = None
+          messageLabel.text = s"Loaded FEN file: $path"
+        case Left(err) =>
+          messageLabel.text = err
+
+  private def loadPgnFile(): Unit =
+    val raw = fileField.text.value
+    val path = if raw == null then "" else raw.trim
+    if path.nonEmpty then
+      controller.loadReplayFromPgnFile(path) match
+        case Right(_) =>
+          selectedFrom = None
+          messageLabel.text = s"Loaded PGN file: $path"
+        case Left(err) =>
+          messageLabel.text = err
+
+  private def stepReplayBackward(): Unit =
+    controller.stepReplayBackward() match
+      case Right(_) =>
+        selectedFrom = None
+        messageLabel.text = ""
+      case Left(err) =>
+        messageLabel.text = err
+
+  private def stepReplayForward(): Unit =
+    controller.stepReplayForward() match
+      case Right(_) =>
+        selectedFrom = None
+        messageLabel.text = ""
+      case Left(err) =>
+        messageLabel.text = err
+
   override def update: Unit =
     Platform.runLater {
       val s = controller.snapshot
       statusLabel.text = s.statusLine
       currentPlayerLabel.text = s.currentPlayerLine
+      replayLabel.text =
+        if controller.hasActiveReplay then
+          s"Replay: ${controller.replayIndex.getOrElse(0)}/${controller.replayLength.getOrElse(0)}"
+        else "Replay: inactive"
+      replayBackButton.disable = !controller.hasActiveReplay || controller.replayIndex.contains(0)
+      replayForwardButton.disable = !controller.hasActiveReplay || controller.replayIndex == controller.replayLength
 
       renderBoard(controller.model.chessState)
     }

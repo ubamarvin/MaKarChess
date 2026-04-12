@@ -2,13 +2,39 @@ package makarchess.controller
 
 import makarchess.opponentmodel.HighlightSquare
 import makarchess.opponentmodel.{PredictionResult, StyleEstimate}
-import makarchess.model.{ChessModel, Color, GameSnapshot, MoveAttemptError, PieceType, Position}
+import makarchess.model.{ChessModel, ChessState, Color, Fen, GameSnapshot, MoveAttemptError, PgnGame, PgnReplay, PgnReplayCursor, PieceType, Position}
+import makarchess.parser.api.ParserBackend
+import makarchess.parser.{FenParser, ParserModule, PgnParser}
+import makarchess.persistence.{FenFileService, GameStateJsonService, LocalFileIO, PgnFileService}
+import makarchess.serialization.UpickleGameStateJsonCodec
 import makarchess.util.MoveResult
 
+object ChessController:
+  def apply(initialModel: ChessModel): ChessController =
+    val fileIO = LocalFileIO()
+    val fenParser = ParserModule.fenParser(ParserBackend.Fast)
+    val pgnParser = ParserModule.pgnParser(ParserBackend.Fast)
+    new ChessController(
+      initialModel,
+      fenParser,
+      pgnParser,
+      FenFileService(fileIO, fenParser),
+      PgnFileService(fileIO, pgnParser),
+      GameStateJsonService(fileIO, UpickleGameStateJsonCodec())
+    )
+
 /** Translates user intents into model operations. Does not own game state (see specs). */
-class ChessController(initialModel: ChessModel):
+class ChessController(
+    initialModel: ChessModel,
+    fenParser: FenParser,
+    pgnParser: PgnParser,
+    fenFileService: FenFileService,
+    pgnFileService: PgnFileService,
+    gameStateJsonService: GameStateJsonService
+):
 
   private var currentModel: ChessModel = initialModel
+  private var activeReplayCursor: Option[PgnReplayCursor] = None
 
   private var opponentModelHighlightsState: Vector[HighlightSquare] = Vector.empty
 
@@ -64,15 +90,118 @@ class ChessController(initialModel: ChessModel):
     currentModel.tryMove(input) match
       case MoveResult.Err(err) => MoveResult.Err(err)
       case MoveResult.Ok(next) =>
+        clearReplayState()
         currentModel = next
         currentModel.notifyObservers
         MoveResult.pure(())
 
+  def loadFenFromString(input: String): Either[String, ChessState] =
+    for
+      fen <- fenParser.parse(input)
+      state <- Fen.toChessState(fen)
+    yield
+      clearReplayState()
+      replaceModelState(state)
+
+  def loadFenFromFile(path: String): Either[String, ChessState] =
+    for
+      fen <- fenFileService.load(path)
+      state <- Fen.toChessState(fen)
+    yield
+      clearReplayState()
+      replaceModelState(state)
+
+  def loadPgnFromString(input: String): Either[String, ChessState] =
+    for
+      pgn <- pgnParser.parse(input)
+      cursor <- PgnReplay.buildCursor(currentModel.chessState, pgn.moves)
+      state <- cursor.jumpToEnd().currentState
+    yield
+      activeReplayCursor = Some(cursor.jumpToEnd())
+      replaceModelState(state)
+
+  def loadPgnFromFile(path: String): Either[String, ChessState] =
+    for
+      pgn <- pgnFileService.load(path)
+      cursor <- PgnReplay.buildCursor(currentModel.chessState, pgn.moves)
+      state <- cursor.jumpToEnd().currentState
+    yield
+      activeReplayCursor = Some(cursor.jumpToEnd())
+      replaceModelState(state)
+
+  def parsePgnFromString(input: String): Either[String, PgnGame] =
+    pgnParser.parse(input)
+
+  def parsePgnFromFile(path: String): Either[String, PgnGame] =
+    pgnFileService.load(path)
+
+  def replayPgnFromString(input: String): Either[String, PgnReplayCursor] =
+    for
+      pgn <- pgnParser.parse(input)
+      replay <- PgnReplay.buildCursor(currentModel.chessState, pgn.moves)
+    yield replay
+
+  def hasActiveReplay: Boolean =
+    activeReplayCursor.nonEmpty
+
+  def replayIndex: Option[Int] =
+    activeReplayCursor.map(_.index)
+
+  def replayLength: Option[Int] =
+    activeReplayCursor.map(cursor => math.max(0, cursor.states.length - 1))
+
+  def loadReplayFromPgnString(input: String): Either[String, ChessState] =
+    for
+      cursor <- replayPgnFromString(input)
+      state <- cursor.currentState
+    yield
+      activeReplayCursor = Some(cursor)
+      replaceModelState(state)
+
+  def loadReplayFromPgnFile(path: String): Either[String, ChessState] =
+    for
+      pgn <- pgnFileService.load(path)
+      cursor <- PgnReplay.buildCursor(currentModel.chessState, pgn.moves)
+      state <- cursor.currentState
+    yield
+      activeReplayCursor = Some(cursor)
+      replaceModelState(state)
+
+  def stepReplayForward(): Either[String, ChessState] =
+    activeReplayCursor match
+      case None => Left("No PGN replay loaded.")
+      case Some(cursor) =>
+        for
+          nextCursor <- cursor.stepForward()
+          state <- nextCursor.currentState
+        yield
+          activeReplayCursor = Some(nextCursor)
+          replaceModelState(state)
+
+  def stepReplayBackward(): Either[String, ChessState] =
+    activeReplayCursor match
+      case None => Left("No PGN replay loaded.")
+      case Some(cursor) =>
+        for
+          nextCursor <- cursor.stepBackward()
+          state <- nextCursor.currentState
+        yield
+          activeReplayCursor = Some(nextCursor)
+          replaceModelState(state)
+
+  def saveCurrentStateToJson(): Either[String, Unit] =
+    gameStateJsonService.save(currentModel.chessState)
+
+  def loadStateFromJson(): Either[String, ChessState] =
+    gameStateJsonService.load().map(replaceModelState)
+
   def startNewGame(): Unit =
+    clearReplayState()
     currentModel = currentModel.restart()
     currentModel.notifyObservers
 
   def restartGame(): Unit =
+    clearReplayState()
     currentModel = currentModel.restart()
     currentModel.notifyObservers
 
@@ -106,6 +235,7 @@ class ChessController(initialModel: ChessModel):
     currentModel.tryMove(uci) match
       case MoveResult.Err(_) => ()
       case MoveResult.Ok(next) =>
+        clearReplayState()
         currentModel = next
         currentModel.notifyObservers
     ()
@@ -117,3 +247,14 @@ class ChessController(initialModel: ChessModel):
       case PieceType.Bishop => 'b'
       case PieceType.Knight => 'n'
       case _                => 'q'
+
+  private def replayPgn(pgn: PgnGame): Either[String, ChessState] =
+    PgnReplay.toFinalState(currentModel.chessState, pgn.moves)
+
+  private def clearReplayState(): Unit =
+    activeReplayCursor = None
+
+  private def replaceModelState(state: ChessState): ChessState =
+    currentModel = currentModel.withState(state)
+    currentModel.notifyObservers
+    state

@@ -39,6 +39,9 @@ final class ChessModel private (private val state: ChessState, private val obser
   def restart(): ChessModel =
     new ChessModel(ChessRules.initialState, observable)
 
+  def withState(nextState: ChessState): ChessModel =
+    new ChessModel(nextState, observable)
+
   private def buildSnapshot(state: ChessState): GameSnapshot =
     val boardText = ChessRules.renderBoard(state.board)
     val (statusLine, playerLine) = state.phase match

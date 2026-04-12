@@ -96,6 +96,12 @@ object ChessRules:
     val raw = applyMoveUnchecked(state, move)
     finalizeAfterMove(raw)
 
+  def evaluateState(raw: ChessState): ChessState =
+    val baseHistory =
+      if raw.repetitionHistory.isEmpty then List(raw.positionKey)
+      else raw.repetitionHistory
+    finalizeAfterMove(raw.copy(repetitionHistory = baseHistory.dropRight(1), phase = GamePhase.InProgress))
+
   private def finalizeAfterMove(raw: ChessState): ChessState =
     val withHistory = raw.copy(repetitionHistory = raw.repetitionHistory :+ raw.positionKey)
     val phase1 =

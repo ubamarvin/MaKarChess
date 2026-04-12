@@ -16,6 +16,7 @@ final class BotCaller(
 
   override def update: Unit =
     if isExecuting then ()
+    else if controller.hasActiveReplay then ()
     else
       val state = controller.model.chessState
       if state.phase != GamePhase.InProgress then ()

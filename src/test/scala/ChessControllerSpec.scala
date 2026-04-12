@@ -61,5 +61,28 @@ class ChessControllerSpec extends FunSuite:
     assertEquals(controller.model.snapshot.currentPlayerLine, "Black to move")
   }
 
+  test("controller can load PGN replay and navigate forward and backward") {
+    val model = ChessModel()
+    val controller = ChessController(model)
+    val pgn =
+      """[Event "Scholar's Mate"]
+        |[Result "1-0"]
+        |
+        |1. e4 e5
+        |2. Bc4 Nc6
+        |3. Qh5 Nf6
+        |4. Qxf7# 1-0
+        |""".stripMargin
+
+    assertEquals(controller.loadReplayFromPgnString(pgn).isRight, true)
+    assertEquals(controller.hasActiveReplay, true)
+    assertEquals(controller.replayIndex, Some(0))
+
+    assertEquals(controller.stepReplayForward().isRight, true)
+    assertEquals(controller.replayIndex, Some(1))
+    assertEquals(controller.stepReplayBackward().isRight, true)
+    assertEquals(controller.replayIndex, Some(0))
+  }
+
 end ChessControllerSpec
 

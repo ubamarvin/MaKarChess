@@ -41,3 +41,26 @@ class BotSpec extends FunSuite:
     val possibleNextStates = legalReplies.map(r => ChessRules.applyLegalMove(stateAfterHuman, r))
     assert(possibleNextStates.contains(after))
   }
+
+  test("bot stays idle while a PGN replay is active") {
+    val model = ChessModel()
+    val controller = ChessController(model)
+
+    val bot = RandomBot(Random(0))
+    val _ = BotCaller(controller, bot, Color.Black)
+
+    val pgn =
+      """[Event "Scholar's Mate"]
+        |[Result "1-0"]
+        |
+        |1.e4 e5 2.Bc4 Nc6 3.Qh5 Nf6 4.Qxf7# 1-0
+        |""".stripMargin
+
+    assertEquals(controller.loadReplayFromPgnString(pgn).isRight, true)
+    assertEquals(controller.hasActiveReplay, true)
+    assertEquals(controller.replayIndex, Some(0))
+
+    assertEquals(controller.stepReplayForward().isRight, true)
+    assertEquals(controller.hasActiveReplay, true)
+    assertEquals(controller.replayIndex, Some(1))
+  }
