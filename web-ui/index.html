@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MaKarChess Web UI</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script>
+      (function () {
+        const reloadKey = "makarchess-sw-cleanup-done";
+
+        async function cleanup() {
+          if (!("serviceWorker" in navigator)) {
+            return;
+          }
+
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map((registration) => registration.unregister()));
+
+          if ("caches" in window) {
+            const cacheKeys = await caches.keys();
+            await Promise.all(cacheKeys.map((key) => caches.delete(key)));
+          }
+
+          if (!sessionStorage.getItem(reloadKey)) {
+            sessionStorage.setItem(reloadKey, "true");
+            window.location.reload();
+          }
+        }
+
+        window.addEventListener("load", () => {
+          cleanup().catch(() => {});
+        });
+      })();
+    </script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="control-panel">
+        <div class="panel-section">
+          <h1>MaKarChess</h1>
+          <p id="connection-status" class="subtle">Checking backend...</p>
+        </div>
+
+        <div class="panel-section controls-grid">
+          <label>
+            <span>Bot Type</span>
+            <select id="bot-type">
+              <option value="">none</option>
+              <option value="random">random</option>
+              <option value="greedy">greedy</option>
+              <option value="defensive">defensive</option>
+              <option value="aggressive">aggressive</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Bot Plays</span>
+            <select id="bot-plays">
+              <option value="">none</option>
+              <option value="white">white</option>
+              <option value="black">black</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Modeled Side</span>
+            <select id="modeled-side">
+              <option value="">none</option>
+              <option value="white">white</option>
+              <option value="black">black</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="panel-section button-row">
+          <button id="new-game-button">New Game</button>
+          <button id="reset-game-button">Reset Game</button>
+          <button id="refresh-button">Refresh Board</button>
+        </div>
+
+        <div class="panel-section move-form">
+          <label>
+            <span>UCI Move</span>
+            <input id="uci-input" type="text" placeholder="e2e4" autocomplete="off" />
+          </label>
+          <button id="submit-move-button">Submit Move</button>
+        </div>
+
+        <div class="panel-section">
+          <h2>Status</h2>
+          <dl class="status-grid">
+            <div><dt>Side To Move</dt><dd id="side-to-move">-</dd></div>
+            <div><dt>Phase</dt><dd id="phase-tag">-</dd></div>
+            <div><dt>Winner</dt><dd id="phase-winner">-</dd></div>
+            <div><dt>Check</dt><dd id="is-check">-</dd></div>
+            <div><dt>Status Line</dt><dd id="status-line">-</dd></div>
+            <div><dt>Current Player</dt><dd id="current-player-line">-</dd></div>
+            <div><dt>Selected Square</dt><dd id="selected-square">-</dd></div>
+          </dl>
+        </div>
+
+        <div class="panel-section message-stack">
+          <div id="info-message" class="message info">Click New Game to start</div>
+          <div id="error-message" class="message error hidden"></div>
+        </div>
+      </aside>
+
+      <main class="board-panel">
+        <div id="board-container" class="board-container"></div>
+      </main>
+    </div>
+
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>

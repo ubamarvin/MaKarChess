@@ -6,6 +6,7 @@ import makarchess.api.routes.GameRoutes
 import makarchess.api.service.{ApiGameService, GameRegistry}
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.Router
+import org.http4s.server.middleware.CORS
 
 object ServerApp extends IOApp.Simple:
   override def run: IO[Unit] =
@@ -14,11 +15,12 @@ object ServerApp extends IOApp.Simple:
     val httpApp = Router(
       "/" -> new GameRoutes[IO](service).routes
     ).orNotFound
+    val corsApp = CORS.policy.withAllowOriginAll(httpApp)
 
     EmberServerBuilder
       .default[IO]
       .withHost(host"127.0.0.1")
       .withPort(port"8080")
-      .withHttpApp(httpApp)
+      .withHttpApp(corsApp)
       .build
       .useForever
