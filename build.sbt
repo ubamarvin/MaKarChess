@@ -22,9 +22,17 @@ lazy val root = project
 
     libraryDependencies ++= Seq(
       "org.scalameta" %% "munit" % "1.2.4" % Test,
+      "org.typelevel" %% "munit-cats-effect-3" % "1.0.7" % Test,
+      "org.typelevel" %% "cats-effect" % "3.5.7",
       "com.lihaoyi" %% "fastparse" % "3.1.1",
       "org.scala-lang.modules" %% "scala-parser-combinators" % "2.4.0",
       "com.lihaoyi" %% "upickle" % "3.3.1",
+      "org.http4s" %% "http4s-ember-server" % "0.23.30",
+      "org.http4s" %% "http4s-dsl" % "0.23.30",
+      "org.http4s" %% "http4s-circe" % "0.23.30",
+      "io.circe" %% "circe-core" % "0.14.10",
+      "io.circe" %% "circe-generic" % "0.14.10",
+      "io.circe" %% "circe-parser" % "0.14.10",
       "org.scalafx" %% "scalafx" % "21.0.0-R32",
       "org.openjfx" % "javafx-base" % "21.0.2" classifier platform,
       "org.openjfx" % "javafx-controls" % "21.0.2" classifier platform,
