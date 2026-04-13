@@ -33,6 +33,8 @@ lazy val root = project
       "io.circe" %% "circe-core" % "0.14.10",
       "io.circe" %% "circe-generic" % "0.14.10",
       "io.circe" %% "circe-parser" % "0.14.10",
+      "com.auth0" % "java-jwt" % "4.4.0",
+      "com.auth0" % "jwks-rsa" % "0.22.1",
       "org.scalafx" %% "scalafx" % "21.0.0-R32",
       "org.openjfx" % "javafx-base" % "21.0.2" classifier platform,
       "org.openjfx" % "javafx-controls" % "21.0.2" classifier platform,

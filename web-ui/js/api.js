@@ -1,4 +1,5 @@
 const API_BASE = "http://127.0.0.1:8080";
+let authTokenProvider = null;
 
 class ApiClientError extends Error {
   constructor(message, status = 0, details = null) {
@@ -24,9 +25,17 @@ async function parseJsonSafely(response) {
 
 async function request(path, options = {}) {
   const url = `${API_BASE}${path}`;
+  const token = authTokenProvider ? await authTokenProvider() : null;
+  const headers = new Headers(options.headers || {});
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
 
   try {
-    const response = await fetch(url, options);
+    const response = await fetch(url, {
+      ...options,
+      headers
+    });
     const payload = await parseJsonSafely(response);
 
     if (!response.ok) {
@@ -56,6 +65,10 @@ function buildJsonOptions(method, body) {
     },
     body: JSON.stringify(body)
   };
+}
+
+export function setAuthTokenProvider(provider) {
+  authTokenProvider = typeof provider === "function" ? provider : null;
 }
 
 export { API_BASE, ApiClientError };

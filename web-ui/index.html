@@ -50,6 +50,27 @@
           <p id="connection-status" class="subtle">Checking backend...</p>
         </div>
 
+        <div class="panel-section auth-section">
+          <h2>Account</h2>
+          <p id="auth-status" class="subtle">Not signed in</p>
+          <label>
+            <span>Email</span>
+            <input id="auth-email-input" type="email" autocomplete="email" placeholder="you@example.com" />
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="auth-password-input" type="password" autocomplete="current-password" placeholder="Password" />
+          </label>
+          <div class="button-row auth-button-row">
+            <button id="sign-in-button" type="button">Sign In</button>
+            <button id="sign-up-button" type="button" class="secondary-button">Sign Up</button>
+          </div>
+          <div class="auth-provider-row">
+            <button id="google-sign-in-button" type="button" class="secondary-button">Google Sign-In</button>
+            <button id="sign-out-button" type="button" class="secondary-button">Sign Out</button>
+          </div>
+        </div>
+
         <div class="panel-section button-row">
           <button id="new-game-button">New Game</button>
           <button id="reset-game-button">Reset Game</button>

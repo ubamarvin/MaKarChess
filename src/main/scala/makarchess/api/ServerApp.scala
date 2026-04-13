@@ -2,6 +2,7 @@ package makarchess.api
 
 import cats.effect.{IO, IOApp}
 import com.comcast.ip4s.{host, port}
+import makarchess.api.auth.FirebaseAuthVerifier
 import makarchess.api.routes.GameRoutes
 import makarchess.api.service.{ApiGameService, GameRegistry}
 import org.http4s.ember.server.EmberServerBuilder
@@ -12,8 +13,10 @@ object ServerApp extends IOApp.Simple:
   override def run: IO[Unit] =
     val registry = new GameRegistry()
     val service = new ApiGameService(registry)
+    val projectId = sys.env.get("FIREBASE_PROJECT_ID").orElse(sys.props.get("firebase.projectId")).getOrElse("")
+    val authVerifier = new FirebaseAuthVerifier(projectId)
     val httpApp = Router(
-      "/" -> new GameRoutes[IO](service).routes
+      "/" -> new GameRoutes[IO](service, authVerifier).routes
     ).orNotFound
     val corsApp = CORS.policy.withAllowOriginAll(httpApp)
 

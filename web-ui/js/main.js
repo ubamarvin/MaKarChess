@@ -10,8 +10,17 @@ import {
   replayForward,
   replayBackward,
   makeMove,
-  ApiClientError
+  ApiClientError,
+  setAuthTokenProvider
 } from "./api.js";
+import {
+  getCurrentIdToken,
+  observeAuthState,
+  signInWithEmail,
+  signInWithGoogle,
+  signOutCurrentUser,
+  signUpWithEmail
+} from "./auth.js";
 import { createScene } from "./scene.js";
 import { createBoard, clearHighlights } from "./board.js";
 import { clearPieces, renderPieces } from "./pieces.js";
@@ -23,7 +32,8 @@ const state = {
   currentStatusResponse: null,
   currentReplayResponse: null,
   loading: false,
-  gameStarted: false
+  gameStarted: false,
+  authenticatedUser: null
 };
 
 const ui = createUiBindings();
@@ -45,6 +55,63 @@ function renderStatus(status = state.currentStatusResponse, boardState = state.c
 function renderReplayStatus(replay = state.currentReplayResponse) {
   state.currentReplayResponse = replay;
   ui.renderReplayStatus(replay);
+}
+
+function requireAuthCredentials() {
+  const { email, password } = ui.readAuthCredentials();
+  if (!email) {
+    ui.setErrorMessage("Email is required.");
+    return null;
+  }
+  if (!password) {
+    ui.setErrorMessage("Password is required.");
+    return null;
+  }
+  return { email, password };
+}
+
+async function syncAuthenticatedSession() {
+  const [boardState, status, replay] = await Promise.all([getBoard(), getStatus(), getReplayStatus()]);
+  renderBoardState(boardState);
+  renderStatus(status, boardState);
+  renderReplayStatus(replay);
+  interaction.enable();
+  state.gameStarted = true;
+}
+
+function applySignedOutState() {
+  state.authenticatedUser = null;
+  state.currentBoardResponse = null;
+  state.currentStatusResponse = null;
+  state.currentReplayResponse = { active: false, index: null, length: null };
+  ui.setAuthStatus("Not signed in");
+  ui.setChessControlsEnabled(false);
+  ui.setAuthControlsEnabled(true, false);
+  ui.closeNewGameModal();
+  interaction.disable();
+  clearHighlights();
+  renderStatus(null, null);
+  renderReplayStatus({ active: false, index: null, length: null });
+  ui.setInfoMessage("Sign in to access your chess session.");
+}
+
+async function applySignedInState(user) {
+  state.authenticatedUser = user;
+  const label = user.email ? `Signed in as ${user.email}` : "Signed in";
+  ui.setAuthStatus(label);
+  ui.setAuthControlsEnabled(true, true);
+  ui.clearErrorMessage();
+  ui.setInfoMessage("Loading your game session...");
+  try {
+    await syncAuthenticatedSession();
+    ui.setChessControlsEnabled(true);
+    ui.setInfoMessage("Signed in. Your chess session is ready.");
+  } catch (error) {
+    const message = error instanceof ApiClientError ? error.message : "Unable to load your game session.";
+    ui.setChessControlsEnabled(false);
+    interaction.disable();
+    ui.setErrorMessage(message);
+  }
 }
 
 async function refreshReplayStatus() {
@@ -246,16 +313,69 @@ ui.elements.replayForwardButton.addEventListener("click", async () => {
   }, "Stepping replay forward...");
 });
 
+ui.elements.signInButton.addEventListener("click", async () => {
+  const credentials = requireAuthCredentials();
+  if (!credentials) {
+    return;
+  }
+
+  await runWithUiFeedback(async () => {
+    await signInWithEmail(credentials.email, credentials.password);
+    ui.clearAuthPassword();
+    ui.setInfoMessage("Signed in.");
+  }, "Signing in...");
+});
+
+ui.elements.signUpButton.addEventListener("click", async () => {
+  const credentials = requireAuthCredentials();
+  if (!credentials) {
+    return;
+  }
+
+  await runWithUiFeedback(async () => {
+    await signUpWithEmail(credentials.email, credentials.password);
+    ui.clearAuthPassword();
+    ui.setInfoMessage("Account created.");
+  }, "Creating account...");
+});
+
+ui.elements.googleSignInButton.addEventListener("click", async () => {
+  await runWithUiFeedback(async () => {
+    await signInWithGoogle();
+    ui.setInfoMessage("Signed in with Google.");
+  }, "Signing in with Google...");
+});
+
+ui.elements.signOutButton.addEventListener("click", async () => {
+  await runWithUiFeedback(async () => {
+    await signOutCurrentUser();
+    ui.clearAuthInputs();
+    ui.setInfoMessage("Signed out.");
+  }, "Signing out...");
+});
+
+observeAuthState(async (user) => {
+  setAuthTokenProvider(getCurrentIdToken);
+  if (!user) {
+    applySignedOutState();
+    return;
+  }
+
+  await applySignedInState(user);
+});
+
 (async function bootstrap() {
+  setAuthTokenProvider(getCurrentIdToken);
   ui.setLoading(false);
   interaction.disable();
+  ui.setAuthControlsEnabled(true, false);
+  ui.setChessControlsEnabled(false);
   renderStatus(null, null);
   renderReplayStatus({ active: false, index: null, length: null });
   try {
     const result = await health();
     ui.setConnectionStatus(`Backend status: ${result.status}`);
-    await refreshReplayStatus();
-    ui.setInfoMessage("Click New Game to start");
+    ui.setInfoMessage("Sign in to access your chess session.");
   } catch (error) {
     const message = error instanceof ApiClientError ? error.message : "Backend not reachable.";
     ui.setConnectionStatus("Backend offline");

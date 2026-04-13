@@ -1,5 +1,7 @@
 package makarchess.api.service
 
+import scala.collection.concurrent.TrieMap
+
 import makarchess.controller.ChessController
 import makarchess.model.{ChessModel, Color}
 import makarchess.opponentmodel.OpponentModelObserver
@@ -19,6 +21,7 @@ final class GameRegistry:
   private val fileIO = LocalFileIO()
   private val fenParser = ParserModule.fenParser(ParserBackend.Fast)
   private val pgnParser = ParserModule.pgnParser(ParserBackend.Fast)
+  private val controllers = TrieMap.empty[String, ChessController]
 
   private def baseController(): ChessController =
     new ChessController(
@@ -50,16 +53,19 @@ final class GameRegistry:
           controller
         }
 
-  private var controller: ChessController = configuredController(GameRuntimeOptions()).fold(_ => baseController(), identity)
+  private def defaultController(): ChessController =
+    configuredController(GameRuntimeOptions()).fold(_ => baseController(), identity)
 
-  def currentController: ChessController = controller
+  def currentController(userId: String): ChessController =
+    controllers.getOrElseUpdate(userId, defaultController())
 
-  def newGame(options: GameRuntimeOptions = GameRuntimeOptions()): Either[String, ChessController] =
+  def newGame(userId: String, options: GameRuntimeOptions = GameRuntimeOptions()): Either[String, ChessController] =
     configuredController(options).map { nextController =>
-      controller = nextController
+      controllers.update(userId, nextController)
       nextController
     }
 
-  def resetGame(): ChessController =
+  def resetGame(userId: String): ChessController =
+    val controller = currentController(userId)
     controller.restartGame()
     controller

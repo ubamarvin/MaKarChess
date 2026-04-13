@@ -1,20 +1,26 @@
 # REST API Documentation
 
-This document describes the implemented REST API for playing a single shared chess game over HTTP.
+This document describes the implemented REST API for playing authenticated per-user chess games over HTTP.
 
 ## Overview
 
 - **Server entrypoint**: `makarchess.api.ServerApp`
 - **Bind address**: `127.0.0.1:8080`
 - **Content type**: JSON
-- **Game model**: one shared in-memory chess game
+- **Game model**: one in-memory chess game per authenticated Firebase user
 
 ## Running the server
 
 Start the API server with:
 
 ```bash
-sbt "runMain makarchess.api.ServerApp"
+FIREBASE_PROJECT_ID=makarchess-f1e62 sbt "runMain makarchess.api.ServerApp"
+```
+
+Alternatively, the Firebase project id can be passed as a JVM property:
+
+```bash
+sbt -Dfirebase.projectId=makarchess-f1e62 "runMain makarchess.api.ServerApp"
 ```
 
 Once started, the API is available at:
@@ -25,11 +31,43 @@ http://127.0.0.1:8080
 
 ## API behavior
 
-- The server keeps **one shared game instance** in memory.
-- `POST /game/new` creates a fresh controller/game instance.
-- `POST /game/reset` resets the current game back to the initial position.
+- `GET /health` is public.
+- All `/game/*` routes require a Firebase ID token in `Authorization: Bearer <token>` format.
+- The server keeps **one in-memory game instance per authenticated Firebase user**.
+- `POST /game/new` creates a fresh controller/game instance for the authenticated user only.
+- `POST /game/reset` resets the authenticated user's current game back to the initial position.
 - `POST /game/move` accepts a move in **UCI notation** such as `e2e4`.
 - Responses return **structured board state**, not rendered board text.
+
+## Authentication
+
+All chess endpoints require a verified Firebase ID token:
+
+```http
+Authorization: Bearer <firebase-id-token>
+```
+
+If the header is missing, blank, malformed, or the token fails verification, the API returns `401 Unauthorized` with an `ErrorResponse` body.
+
+Examples:
+
+```json
+{
+  "message": "Authorization bearer token is required."
+}
+```
+
+```json
+{
+  "message": "Authorization header must use Bearer token format."
+}
+```
+
+```json
+{
+  "message": "Unauthorized: invalid token"
+}
+```
 
 ## Data formats
 
@@ -90,7 +128,7 @@ Used by `POST /game/pgn`.
 
 ### `ErrorResponse`
 
-Used for `400`, `409`, and possible `500` responses.
+Used for `400`, `401`, `409`, and possible `500` responses.
 
 ```json
 {
@@ -196,7 +234,7 @@ curl http://127.0.0.1:8080/health
 
 ## `POST /game/new`
 
-Creates a new shared chess game and returns the initial state.
+Creates a new chess game for the authenticated user and returns the initial state.
 
 This route may be called either:
 
@@ -206,13 +244,15 @@ This route may be called either:
 ### Example
 
 ```bash
-curl -X POST http://127.0.0.1:8080/game/new
+curl -X POST http://127.0.0.1:8080/game/new \
+  -H "Authorization: Bearer <firebase-id-token>"
 ```
 
 ### Example with configuration
 
 ```bash
 curl -X POST http://127.0.0.1:8080/game/new \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -H "Content-Type: application/json" \
   -d '{"botType":"random","botPlays":"black","modeledSide":"white"}'
 ```
@@ -273,15 +313,17 @@ curl -X POST http://127.0.0.1:8080/game/new \
 ### Status codes
 
 - `200 OK`
+- `401 Unauthorized`
 
 ## `POST /game/reset`
 
-Resets the current shared game to the default starting position.
+Resets the authenticated user's current game to the default starting position.
 
 ### Example
 
 ```bash
-curl -X POST http://127.0.0.1:8080/game/reset
+curl -X POST http://127.0.0.1:8080/game/reset \
+  -H "Authorization: Bearer <firebase-id-token>"
 ```
 
 ### Success response
@@ -291,6 +333,7 @@ Returns the same structure as `GameStateResponse`.
 ### Status codes
 
 - `200 OK`
+- `401 Unauthorized`
 
 ## `GET /game/board`
 
@@ -299,7 +342,8 @@ Returns the current board state as structured JSON.
 ### Example
 
 ```bash
-curl http://127.0.0.1:8080/game/board
+curl http://127.0.0.1:8080/game/board \
+  -H "Authorization: Bearer <firebase-id-token>"
 ```
 
 ### Success response
@@ -342,6 +386,7 @@ curl http://127.0.0.1:8080/game/board
 ### Status codes
 
 - `200 OK`
+- `401 Unauthorized`
 
 ## `GET /game/status`
 
@@ -350,7 +395,8 @@ Returns a compact status view of the current game.
 ### Example
 
 ```bash
-curl http://127.0.0.1:8080/game/status
+curl http://127.0.0.1:8080/game/status \
+  -H "Authorization: Bearer <firebase-id-token>"
 ```
 
 ### Success response
@@ -377,15 +423,17 @@ curl http://127.0.0.1:8080/game/status
 ### Status codes
 
 - `200 OK`
+- `401 Unauthorized`
 
 ## `GET /game/replay`
 
-Returns replay metadata for the current shared game.
+Returns replay metadata for the authenticated user's current game.
 
 ### Example
 
 ```bash
-curl http://127.0.0.1:8080/game/replay
+curl http://127.0.0.1:8080/game/replay \
+  -H "Authorization: Bearer <firebase-id-token>"
 ```
 
 ### Success response
@@ -408,6 +456,7 @@ curl http://127.0.0.1:8080/game/replay
 ### Status codes
 
 - `200 OK`
+- `401 Unauthorized`
 
 ## `POST /game/fen`
 
@@ -425,6 +474,7 @@ Loads a board position from a FEN string and replaces the current game state.
 
 ```bash
 curl -X POST http://127.0.0.1:8080/game/fen \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -H "Content-Type: application/json" \
   -d '{"fen":"4k3/8/8/8/8/8/8/4K3 w - - 0 1"}'
 ```
@@ -437,10 +487,11 @@ Returns the updated `GameStateResponse` for the loaded FEN position.
 
 - `200 OK`
 - `400 Bad Request`
+- `401 Unauthorized`
 
 ## `POST /game/pgn`
 
-Loads a PGN replay and places the shared game into replay mode at the **start position**.
+Loads a PGN replay and places the authenticated user's game into replay mode at the **start position**.
 
 ### Request body
 
@@ -454,6 +505,7 @@ Loads a PGN replay and places the shared game into replay mode at the **start po
 
 ```bash
 curl -X POST http://127.0.0.1:8080/game/pgn \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -H "Content-Type: application/json" \
   -d '{"pgn":"1. e4 e5 2. Nf3 Nc6"}'
 ```
@@ -472,6 +524,7 @@ Returns the `GameStateResponse` at replay index `0`.
 
 - `200 OK`
 - `400 Bad Request`
+- `401 Unauthorized`
 
 ## `POST /game/replay/forward`
 
@@ -480,7 +533,8 @@ Advances the active PGN replay by one step.
 ### Example
 
 ```bash
-curl -X POST http://127.0.0.1:8080/game/replay/forward
+curl -X POST http://127.0.0.1:8080/game/replay/forward \
+  -H "Authorization: Bearer <firebase-id-token>"
 ```
 
 ### Success response
@@ -490,6 +544,7 @@ Returns the updated `GameStateResponse` for the next replay state.
 ### Status codes
 
 - `200 OK`
+- `401 Unauthorized`
 - `409 Conflict`
 
 ## `POST /game/replay/backward`
@@ -499,7 +554,8 @@ Moves the active PGN replay back by one step.
 ### Example
 
 ```bash
-curl -X POST http://127.0.0.1:8080/game/replay/backward
+curl -X POST http://127.0.0.1:8080/game/replay/backward \
+  -H "Authorization: Bearer <firebase-id-token>"
 ```
 
 ### Success response
@@ -509,11 +565,12 @@ Returns the updated `GameStateResponse` for the previous replay state.
 ### Status codes
 
 - `200 OK`
+- `401 Unauthorized`
 - `409 Conflict`
 
 ## `POST /game/move`
 
-Applies a move to the current shared game.
+Applies a move to the authenticated user's current game.
 
 ### Request body
 
@@ -527,6 +584,7 @@ Applies a move to the current shared game.
 
 ```bash
 curl -X POST http://127.0.0.1:8080/game/move \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -H "Content-Type: application/json" \
   -d '{"uci":"e2e4"}'
 ```
@@ -576,6 +634,7 @@ Example after `e2e4`:
 
 ```bash
 curl -X POST http://127.0.0.1:8080/game/move \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -H "Content-Type: application/json" \
   -d '{"uci":}'
 ```
@@ -592,6 +651,7 @@ Response:
 
 ```bash
 curl -X POST http://127.0.0.1:8080/game/move \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -H "Content-Type: application/json" \
   -d '{"uci":"bad"}'
 ```
@@ -608,6 +668,7 @@ Response:
 
 ```bash
 curl -X POST http://127.0.0.1:8080/game/move \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -H "Content-Type: application/json" \
   -d '{"uci":"e2e5"}'
 ```
@@ -624,6 +685,7 @@ Response:
 
 ```bash
 curl -X POST http://127.0.0.1:8080/game/move \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -H "Content-Type: application/json" \
   -d '{"uci":""}'
 ```
@@ -640,6 +702,7 @@ Response:
 
 - `200 OK`
 - `400 Bad Request`
+- `401 Unauthorized`
 - `409 Conflict`
 
 ## HTTP status code summary
@@ -666,6 +729,13 @@ Response:
   - missing or blank `uci`
   - invalid move syntax
 
+- `401 Unauthorized`
+  - missing `Authorization` header
+  - malformed authorization scheme
+  - blank bearer token
+  - invalid or unverifiable Firebase ID token
+  - backend started without Firebase project configuration
+
 - `409 Conflict`
   - replay step attempted without an active replay
   - replay step attempted past the start or end of the replay
@@ -680,13 +750,15 @@ Response:
 Start a new game:
 
 ```bash
-curl -X POST http://127.0.0.1:8080/game/new
+curl -X POST http://127.0.0.1:8080/game/new \
+  -H "Authorization: Bearer <firebase-id-token>"
 ```
 
 Start a configured game with a black random bot and white opponent modeling:
 
 ```bash
 curl -X POST http://127.0.0.1:8080/game/new \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -H "Content-Type: application/json" \
   -d '{"botType":"random","botPlays":"black","modeledSide":"white"}'
 ```
@@ -694,13 +766,15 @@ curl -X POST http://127.0.0.1:8080/game/new \
 Check the board:
 
 ```bash
-curl http://127.0.0.1:8080/game/board
+curl http://127.0.0.1:8080/game/board \
+  -H "Authorization: Bearer <firebase-id-token>"
 ```
 
 Play white's first move:
 
 ```bash
 curl -X POST http://127.0.0.1:8080/game/move \
+  -H "Authorization: Bearer <firebase-id-token>" \
   -H "Content-Type: application/json" \
   -d '{"uci":"e2e4"}'
 ```
@@ -708,11 +782,13 @@ curl -X POST http://127.0.0.1:8080/game/move \
 Read status:
 
 ```bash
-curl http://127.0.0.1:8080/game/status
+curl http://127.0.0.1:8080/game/status \
+  -H "Authorization: Bearer <firebase-id-token>"
 ```
 
 Reset the game:
 
 ```bash
-curl -X POST http://127.0.0.1:8080/game/reset
+curl -X POST http://127.0.0.1:8080/game/reset \
+  -H "Authorization: Bearer <firebase-id-token>"
 ```

@@ -1,6 +1,7 @@
 import cats.effect.IO
 import io.circe.Json
 import io.circe.parser.parse
+import makarchess.api.auth.{AuthVerifier, AuthenticatedUser}
 import makarchess.api.routes.GameRoutes
 import makarchess.api.service.{ApiGameService, GameRegistry}
 import munit.CatsEffectSuite
@@ -8,13 +9,26 @@ import org.http4s.Method.{GET, POST}
 import org.http4s.Request
 import org.http4s.Status
 import org.http4s.circe.CirceEntityCodec._
+import org.http4s.headers.Authorization
 import org.http4s.implicits.uri
+import org.http4s.{AuthScheme, Credentials, Header}
 
 class ApiRoutesSpec extends CatsEffectSuite:
 
+  private val authVerifier = new AuthVerifier:
+    override def verifyIdToken(idToken: String): Either[String, AuthenticatedUser] =
+      idToken.trim match
+        case "token-user-a" => Right(AuthenticatedUser("user-a", Some("a@example.com")))
+        case "token-user-b" => Right(AuthenticatedUser("user-b", Some("b@example.com")))
+        case "" => Left("Missing bearer token.")
+        case _ => Left("Unauthorized: invalid token")
+
   private def app =
     val service = new ApiGameService(new GameRegistry())
-    new GameRoutes[IO](service).routes.orNotFound
+    new GameRoutes[IO](service, authVerifier).routes.orNotFound
+
+  private def authenticated(request: Request[IO], token: String = "token-user-a") =
+    request.putHeaders(Authorization(Credentials.Token(AuthScheme.Bearer, token)))
 
   test("GET /health returns ok") {
     app.run(Request[IO](GET, uri = uri"/health")).flatMap { response =>
@@ -26,7 +40,7 @@ class ApiRoutesSpec extends CatsEffectSuite:
   }
 
   test("POST /game/new returns initial game state") {
-    app.run(Request[IO](POST, uri = uri"/game/new")).flatMap { response =>
+    app.run(authenticated(Request[IO](POST, uri = uri"/game/new"))).flatMap { response =>
       response.as[Json].map { json =>
         assertEquals(response.status, Status.Ok)
         assertEquals(json.hcursor.get[String]("sideToMove"), Right("White"))
@@ -36,9 +50,9 @@ class ApiRoutesSpec extends CatsEffectSuite:
   }
 
   test("POST /game/new accepts bot and opponent-model options") {
-    val request = Request[IO](POST, uri = uri"/game/new").withEntity(
+    val request = authenticated(Request[IO](POST, uri = uri"/game/new").withEntity(
       parse("""{"botType":"random","botPlays":"black","modeledSide":"white"}""").toOption.get
-    )
+    ))
 
     app.run(request).flatMap { response =>
       response.as[Json].map { json =>
@@ -50,9 +64,9 @@ class ApiRoutesSpec extends CatsEffectSuite:
   }
 
   test("POST /game/new rejects invalid configured colors") {
-    val request = Request[IO](POST, uri = uri"/game/new").withEntity(
+    val request = authenticated(Request[IO](POST, uri = uri"/game/new").withEntity(
       parse("""{"botPlays":"green"}""").toOption.get
-    )
+    ))
 
     app.run(request).flatMap { response =>
       response.as[Json].map { json =>
@@ -63,9 +77,9 @@ class ApiRoutesSpec extends CatsEffectSuite:
   }
 
   test("POST /game/new rejects unknown bot types") {
-    val request = Request[IO](POST, uri = uri"/game/new").withEntity(
+    val request = authenticated(Request[IO](POST, uri = uri"/game/new").withEntity(
       parse("""{"botType":"wizard","botPlays":"black"}""").toOption.get
-    )
+    ))
 
     app.run(request).flatMap { response =>
       response.as[Json].map { json =>
@@ -76,7 +90,7 @@ class ApiRoutesSpec extends CatsEffectSuite:
   }
 
   test("GET /game/board returns structured board state") {
-    app.run(Request[IO](GET, uri = uri"/game/board")).flatMap { response =>
+    app.run(authenticated(Request[IO](GET, uri = uri"/game/board"))).flatMap { response =>
       response.as[Json].map { json =>
         assertEquals(response.status, Status.Ok)
         assertEquals(json.hcursor.get[Int]("fullmoveNumber"), Right(1))
@@ -86,9 +100,9 @@ class ApiRoutesSpec extends CatsEffectSuite:
   }
 
   test("POST /game/fen loads a FEN position") {
-    val request = Request[IO](POST, uri = uri"/game/fen").withEntity(
+    val request = authenticated(Request[IO](POST, uri = uri"/game/fen").withEntity(
       parse("""{"fen":"4k3/8/8/8/8/8/8/4K3 w - - 0 1"}""").toOption.get
-    )
+    ))
 
     app.run(request).flatMap { response =>
       response.as[Json].map { json =>
@@ -100,9 +114,9 @@ class ApiRoutesSpec extends CatsEffectSuite:
   }
 
   test("POST /game/fen rejects invalid FEN") {
-    val request = Request[IO](POST, uri = uri"/game/fen").withEntity(
+    val request = authenticated(Request[IO](POST, uri = uri"/game/fen").withEntity(
       parse("""{"fen":"not-a-fen"}""").toOption.get
-    )
+    ))
 
     app.run(request).flatMap { response =>
       response.as[Json].map { json =>
@@ -114,14 +128,14 @@ class ApiRoutesSpec extends CatsEffectSuite:
 
   test("POST /game/pgn loads replay at the start position and GET /game/replay reports metadata") {
     val api = app
-    val request = Request[IO](POST, uri = uri"/game/pgn").withEntity(
+    val request = authenticated(Request[IO](POST, uri = uri"/game/pgn").withEntity(
       parse("""{"pgn":"1. e4 e5 2. Nf3 Nc6"}""").toOption.get
-    )
+    ))
 
     for
       loadResponse <- api.run(request)
       loadJson <- loadResponse.as[Json]
-      replayResponse <- api.run(Request[IO](GET, uri = uri"/game/replay"))
+      replayResponse <- api.run(authenticated(Request[IO](GET, uri = uri"/game/replay")))
       replayJson <- replayResponse.as[Json]
     yield
       assertEquals(loadResponse.status, Status.Ok)
@@ -134,11 +148,11 @@ class ApiRoutesSpec extends CatsEffectSuite:
 
   test("POST /game/replay/forward and backward step through an active replay") {
     val api = app
-    val load = Request[IO](POST, uri = uri"/game/pgn").withEntity(
+    val load = authenticated(Request[IO](POST, uri = uri"/game/pgn").withEntity(
       parse("""{"pgn":"1. e4 e5"}""").toOption.get
-    )
-    val forward = Request[IO](POST, uri = uri"/game/replay/forward")
-    val backward = Request[IO](POST, uri = uri"/game/replay/backward")
+    ))
+    val forward = authenticated(Request[IO](POST, uri = uri"/game/replay/forward"))
+    val backward = authenticated(Request[IO](POST, uri = uri"/game/replay/backward"))
 
     for
       _ <- api.run(load)
@@ -154,7 +168,7 @@ class ApiRoutesSpec extends CatsEffectSuite:
   }
 
   test("POST /game/replay/forward without active replay returns 409") {
-    app.run(Request[IO](POST, uri = uri"/game/replay/forward")).flatMap { response =>
+    app.run(authenticated(Request[IO](POST, uri = uri"/game/replay/forward"))).flatMap { response =>
       response.as[Json].map { json =>
         assertEquals(response.status, Status.Conflict)
         assertEquals(json.hcursor.get[String]("message"), Right("No PGN replay loaded."))
@@ -164,11 +178,11 @@ class ApiRoutesSpec extends CatsEffectSuite:
 
   test("normal move clears replay state") {
     val api = app
-    val load = Request[IO](POST, uri = uri"/game/pgn").withEntity(
+    val load = authenticated(Request[IO](POST, uri = uri"/game/pgn").withEntity(
       parse("""{"pgn":"1. e4 e5"}""").toOption.get
-    )
-    val move = Request[IO](POST, uri = uri"/game/move").withEntity(parse("""{"uci":"e2e4"}""").toOption.get)
-    val replay = Request[IO](GET, uri = uri"/game/replay")
+    ))
+    val move = authenticated(Request[IO](POST, uri = uri"/game/move").withEntity(parse("""{"uci":"e2e4"}""").toOption.get))
+    val replay = authenticated(Request[IO](GET, uri = uri"/game/replay"))
 
     for
       _ <- api.run(load)
@@ -181,7 +195,7 @@ class ApiRoutesSpec extends CatsEffectSuite:
   }
 
   test("POST /game/move applies a legal move and returns updated state") {
-    val request = Request[IO](POST, uri = uri"/game/move").withEntity(parse("""{"uci":"e2e4"}""").toOption.get)
+    val request = authenticated(Request[IO](POST, uri = uri"/game/move").withEntity(parse("""{"uci":"e2e4"}""").toOption.get))
     app.run(request).flatMap { response =>
       response.as[Json].map { json =>
         assertEquals(response.status, Status.Ok)
@@ -192,7 +206,7 @@ class ApiRoutesSpec extends CatsEffectSuite:
   }
 
   test("POST /game/move with invalid syntax returns 400") {
-    val request = Request[IO](POST, uri = uri"/game/move").withEntity(parse("""{"uci":"bad"}""").toOption.get)
+    val request = authenticated(Request[IO](POST, uri = uri"/game/move").withEntity(parse("""{"uci":"bad"}""").toOption.get))
     app.run(request).flatMap { response =>
       response.as[Json].map { json =>
         assertEquals(response.status, Status.BadRequest)
@@ -202,7 +216,7 @@ class ApiRoutesSpec extends CatsEffectSuite:
   }
 
   test("POST /game/move with illegal move returns 409") {
-    val request = Request[IO](POST, uri = uri"/game/move").withEntity(parse("""{"uci":"e2e5"}""").toOption.get)
+    val request = authenticated(Request[IO](POST, uri = uri"/game/move").withEntity(parse("""{"uci":"e2e5"}""").toOption.get))
     app.run(request).flatMap { response =>
       response.as[Json].map { json =>
         assertEquals(response.status, Status.Conflict)
@@ -212,8 +226,8 @@ class ApiRoutesSpec extends CatsEffectSuite:
   }
 
   test("POST /game/reset resets the game") {
-    val move = Request[IO](POST, uri = uri"/game/move").withEntity(parse("""{"uci":"e2e4"}""").toOption.get)
-    val reset = Request[IO](POST, uri = uri"/game/reset")
+    val move = authenticated(Request[IO](POST, uri = uri"/game/move").withEntity(parse("""{"uci":"e2e4"}""").toOption.get))
+    val reset = authenticated(Request[IO](POST, uri = uri"/game/reset"))
 
     for
       _ <- app.run(move)
@@ -223,4 +237,44 @@ class ApiRoutesSpec extends CatsEffectSuite:
       assertEquals(response.status, Status.Ok)
       assertEquals(json.hcursor.get[String]("sideToMove"), Right("White"))
       assertEquals(json.hcursor.get[Int]("fullmoveNumber"), Right(1))
+  }
+
+  test("GET /game/board without bearer token returns 401") {
+    app.run(Request[IO](GET, uri = uri"/game/board")).flatMap { response =>
+      response.as[Json].map { json =>
+        assertEquals(response.status, Status.Unauthorized)
+        assertEquals(json.hcursor.get[String]("message"), Right("Authorization bearer token is required."))
+      }
+    }
+  }
+
+  test("GET /game/board with invalid token returns 401") {
+    app.run(authenticated(Request[IO](GET, uri = uri"/game/board"), token = "bad-token")).flatMap { response =>
+      response.as[Json].map { json =>
+        assertEquals(response.status, Status.Unauthorized)
+        assertEquals(json.hcursor.get[String]("message"), Right("Unauthorized: invalid token"))
+      }
+    }
+  }
+
+  test("different authenticated users receive isolated game state") {
+    val api = app
+    val moveUserA = authenticated(
+      Request[IO](POST, uri = uri"/game/move").withEntity(parse("""{"uci":"e2e4"}""").toOption.get),
+      token = "token-user-a"
+    )
+    val boardUserA = authenticated(Request[IO](GET, uri = uri"/game/board"), token = "token-user-a")
+    val boardUserB = authenticated(Request[IO](GET, uri = uri"/game/board"), token = "token-user-b")
+
+    for
+      _ <- api.run(moveUserA)
+      responseA <- api.run(boardUserA)
+      jsonA <- responseA.as[Json]
+      responseB <- api.run(boardUserB)
+      jsonB <- responseB.as[Json]
+    yield
+      assertEquals(responseA.status, Status.Ok)
+      assertEquals(responseB.status, Status.Ok)
+      assertEquals(jsonA.hcursor.get[String]("sideToMove"), Right("Black"))
+      assertEquals(jsonB.hcursor.get[String]("sideToMove"), Right("White"))
   }

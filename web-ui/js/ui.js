@@ -1,6 +1,13 @@
 export function createUiBindings() {
   const elements = {
     connectionStatus: document.getElementById("connection-status"),
+    authStatus: document.getElementById("auth-status"),
+    authEmailInput: document.getElementById("auth-email-input"),
+    authPasswordInput: document.getElementById("auth-password-input"),
+    signInButton: document.getElementById("sign-in-button"),
+    signUpButton: document.getElementById("sign-up-button"),
+    googleSignInButton: document.getElementById("google-sign-in-button"),
+    signOutButton: document.getElementById("sign-out-button"),
     botType: document.getElementById("bot-type"),
     botPlays: document.getElementById("bot-plays"),
     modeledSide: document.getElementById("modeled-side"),
@@ -47,6 +54,59 @@ export function createUiBindings() {
     elements.connectionStatus.textContent = text;
   }
 
+  function setAuthStatus(text) {
+    elements.authStatus.textContent = text;
+  }
+
+  function readAuthCredentials() {
+    return {
+      email: elements.authEmailInput.value.trim(),
+      password: elements.authPasswordInput.value
+    };
+  }
+
+  function clearAuthPassword() {
+    elements.authPasswordInput.value = "";
+  }
+
+  function clearAuthInputs() {
+    elements.authEmailInput.value = "";
+    elements.authPasswordInput.value = "";
+  }
+
+  function setAuthControlsEnabled(enabled, signedIn = false) {
+    const disabled = !enabled;
+    elements.authEmailInput.disabled = disabled || signedIn;
+    elements.authPasswordInput.disabled = disabled || signedIn;
+    elements.signInButton.disabled = disabled || signedIn;
+    elements.signUpButton.disabled = disabled || signedIn;
+    elements.googleSignInButton.disabled = disabled || signedIn;
+    elements.signOutButton.disabled = disabled || !signedIn;
+  }
+
+  function setChessControlsEnabled(enabled) {
+    const disabled = !enabled;
+    elements.newGameButton.disabled = disabled;
+    elements.resetGameButton.disabled = disabled;
+    elements.closeNewGameModalButton.disabled = disabled;
+    elements.cancelNewGameButton.disabled = disabled;
+    elements.confirmNewGameButton.disabled = disabled;
+    if (elements.submitMoveButton) {
+      elements.submitMoveButton.disabled = disabled;
+    }
+    elements.loadFenButton.disabled = disabled;
+    elements.loadPgnButton.disabled = disabled;
+    if (elements.uciInput) {
+      elements.uciInput.disabled = disabled;
+    }
+    elements.importInput.disabled = disabled;
+    elements.botType.disabled = disabled;
+    elements.botPlays.disabled = disabled;
+    elements.modeledSide.disabled = disabled;
+    elements.replayBackButton.disabled = true;
+    elements.replayForwardButton.disabled = true;
+  }
+
   function setInfoMessage(text) {
     elements.infoMessage.textContent = text;
     elements.infoMessage.classList.remove("hidden");
@@ -83,23 +143,9 @@ export function createUiBindings() {
 
   function setLoading(isLoading) {
     const disabled = Boolean(isLoading);
-    elements.newGameButton.disabled = disabled;
-    elements.closeNewGameModalButton.disabled = disabled;
-    elements.cancelNewGameButton.disabled = disabled;
-    elements.confirmNewGameButton.disabled = disabled;
-    elements.resetGameButton.disabled = disabled;
-    if (elements.submitMoveButton) {
-      elements.submitMoveButton.disabled = disabled;
-    }
-    elements.loadFenButton.disabled = disabled;
-    elements.loadPgnButton.disabled = disabled;
-    if (elements.uciInput) {
-      elements.uciInput.disabled = disabled;
-    }
-    elements.importInput.disabled = disabled;
-    elements.botType.disabled = disabled;
-    elements.botPlays.disabled = disabled;
-    elements.modeledSide.disabled = disabled;
+    const signedIn = elements.signOutButton.disabled === false;
+    setAuthControlsEnabled(!disabled, signedIn);
+    setChessControlsEnabled(!disabled && signedIn);
     if (disabled) {
       elements.replayBackButton.disabled = true;
       elements.replayForwardButton.disabled = true;
@@ -135,6 +181,12 @@ export function createUiBindings() {
     elements,
     readNewGameConfig,
     setConnectionStatus,
+    setAuthStatus,
+    readAuthCredentials,
+    clearAuthPassword,
+    clearAuthInputs,
+    setAuthControlsEnabled,
+    setChessControlsEnabled,
     setInfoMessage,
     clearInfoMessage,
     setErrorMessage,
