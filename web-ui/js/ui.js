@@ -5,12 +5,15 @@ export function createUiBindings() {
     botPlays: document.getElementById("bot-plays"),
     modeledSide: document.getElementById("modeled-side"),
     newGameButton: document.getElementById("new-game-button"),
+    newGameModal: document.getElementById("new-game-modal"),
+    closeNewGameModalButton: document.getElementById("close-new-game-modal-button"),
+    cancelNewGameButton: document.getElementById("cancel-new-game-button"),
+    confirmNewGameButton: document.getElementById("confirm-new-game-button"),
     resetGameButton: document.getElementById("reset-game-button"),
     uciInput: document.getElementById("uci-input"),
     submitMoveButton: document.getElementById("submit-move-button"),
-    fenInput: document.getElementById("fen-input"),
+    importInput: document.getElementById("import-input"),
     loadFenButton: document.getElementById("load-fen-button"),
-    pgnInput: document.getElementById("pgn-input"),
     loadPgnButton: document.getElementById("load-pgn-button"),
     replayBackButton: document.getElementById("replay-back-button"),
     replayForwardButton: document.getElementById("replay-forward-button"),
@@ -68,16 +71,32 @@ export function createUiBindings() {
     elements.selectedSquare.textContent = text || "-";
   }
 
+  function openNewGameModal() {
+    elements.newGameModal.classList.remove("hidden");
+    elements.newGameModal.setAttribute("aria-hidden", "false");
+  }
+
+  function closeNewGameModal() {
+    elements.newGameModal.classList.add("hidden");
+    elements.newGameModal.setAttribute("aria-hidden", "true");
+  }
+
   function setLoading(isLoading) {
     const disabled = Boolean(isLoading);
     elements.newGameButton.disabled = disabled;
+    elements.closeNewGameModalButton.disabled = disabled;
+    elements.cancelNewGameButton.disabled = disabled;
+    elements.confirmNewGameButton.disabled = disabled;
     elements.resetGameButton.disabled = disabled;
-    elements.submitMoveButton.disabled = disabled;
+    if (elements.submitMoveButton) {
+      elements.submitMoveButton.disabled = disabled;
+    }
     elements.loadFenButton.disabled = disabled;
     elements.loadPgnButton.disabled = disabled;
-    elements.uciInput.disabled = disabled;
-    elements.fenInput.disabled = disabled;
-    elements.pgnInput.disabled = disabled;
+    if (elements.uciInput) {
+      elements.uciInput.disabled = disabled;
+    }
+    elements.importInput.disabled = disabled;
     elements.botType.disabled = disabled;
     elements.botPlays.disabled = disabled;
     elements.modeledSide.disabled = disabled;
@@ -121,6 +140,8 @@ export function createUiBindings() {
     setErrorMessage,
     clearErrorMessage,
     setSelectedSquare,
+    openNewGameModal,
+    closeNewGameModal,
     setLoading,
     renderStatus,
     renderReplayStatus

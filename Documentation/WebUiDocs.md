@@ -77,15 +77,15 @@ The web UI includes:
 
 - `New Game`
 - `Reset Game`
-- `Bot Type` dropdown
-- `Bot Plays` dropdown
-- `Modeled Side` dropdown
+- `New Game` configuration modal
+  - `Bot Type` dropdown
+  - `Bot Plays` dropdown
+  - `Modeled Side` dropdown
 - `UCI Move` input
 - `Submit Move`
-- `FEN` text area
+- shared `FEN / PGN` text area
 - `Load FEN`
-- `PGN Replay` text area
-- `Load PGN Replay`
+- `Load PGN`
 - `Replay Back`
 - `Replay Forward`
 - replay status display
@@ -108,7 +108,9 @@ GET http://127.0.0.1:8080/health
 
 Used when the user clicks `New Game`.
 
-If no dropdown options are selected, the frontend sends no JSON body.
+The `New Game` button opens a small modal where the user can optionally choose game configuration values.
+
+If no modal options are selected, the frontend sends no JSON body.
 
 Example without configuration:
 
@@ -180,6 +182,8 @@ The frontend uses it to show:
 
 Used when the user clicks `Load FEN`.
 
+The frontend reads the shared import field and sends its contents as FEN.
+
 Example request body:
 
 ```json
@@ -198,7 +202,9 @@ This route replaces the current board position and returns the updated `GameStat
 
 ### `POST /game/pgn`
 
-Used when the user clicks `Load PGN Replay`.
+Used when the user clicks `Load PGN`.
+
+The frontend reads the shared import field and sends its contents as PGN.
 
 Example request body:
 
@@ -266,12 +272,14 @@ The backend validates the move and returns the updated `GameStateResponse`.
 
 When the user clicks `New Game`:
 
-- the frontend reads the dropdown values
+- the frontend opens a configuration modal
+- when the user confirms, it reads the modal dropdown values
 - it builds an optional config object
 - it calls `POST /game/new`
 - it renders the returned board state
 - it fetches `/game/status`
 - it updates the status panel
+- it closes the modal on success
 
 ### Reset Game
 
@@ -283,7 +291,7 @@ When the user clicks `Reset Game`:
 
 ### Load FEN
 
-When the user pastes a FEN string and clicks `Load FEN`:
+When the user pastes a FEN string into the shared import field and clicks `Load FEN`:
 
 - the frontend sends `POST /game/fen`
 - it rerenders the board from the loaded position
@@ -293,7 +301,7 @@ When the user pastes a FEN string and clicks `Load FEN`:
 
 ### Load PGN Replay
 
-When the user pastes a PGN string and clicks `Load PGN Replay`:
+When the user pastes a PGN string into the shared import field and clicks `Load PGN`:
 
 - the frontend sends `POST /game/pgn`
 - it rerenders the board at replay index `0`

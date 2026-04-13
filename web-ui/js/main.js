@@ -78,7 +78,9 @@ async function handleMoveRequest(uci) {
     const [status, replay] = await Promise.all([getStatus(), getReplayStatus()]);
     renderStatus(status, boardState);
     renderReplayStatus(replay);
-    ui.elements.uciInput.value = "";
+    if (ui.elements.uciInput) {
+      ui.elements.uciInput.value = "";
+    }
     ui.setInfoMessage(`Move applied: ${uci}`);
   }, `Submitting move ${uci}...`);
 }
@@ -92,7 +94,40 @@ const interaction = createInteractionController({
   getBoardState: () => state.currentBoardResponse
 });
 
-ui.elements.newGameButton.addEventListener("click", async () => {
+ui.elements.newGameButton.addEventListener("click", () => {
+  ui.clearErrorMessage();
+  ui.openNewGameModal();
+});
+
+ui.elements.closeNewGameModalButton.addEventListener("click", () => {
+  ui.closeNewGameModal();
+});
+
+ui.elements.cancelNewGameButton.addEventListener("click", () => {
+  ui.closeNewGameModal();
+});
+
+ui.elements.newGameModal.addEventListener("click", (event) => {
+  if (state.loading) {
+    return;
+  }
+
+  if (event.target === ui.elements.newGameModal) {
+    ui.closeNewGameModal();
+  }
+});
+
+window.addEventListener("keydown", (event) => {
+  if (state.loading) {
+    return;
+  }
+
+  if (event.key === "Escape") {
+    ui.closeNewGameModal();
+  }
+});
+
+ui.elements.confirmNewGameButton.addEventListener("click", async () => {
   await runWithUiFeedback(async () => {
     const config = ui.readNewGameConfig();
     const boardState = await newGame(config);
@@ -103,6 +138,7 @@ ui.elements.newGameButton.addEventListener("click", async () => {
     clearHighlights();
     interaction.enable();
     state.gameStarted = true;
+    ui.closeNewGameModal();
     ui.setInfoMessage("New game started.");
   }, "Starting new game...");
 });
@@ -121,27 +157,29 @@ ui.elements.resetGameButton.addEventListener("click", async () => {
   }, "Resetting game...");
 });
 
-ui.elements.submitMoveButton.addEventListener("click", async () => {
-  const uci = ui.elements.uciInput.value.trim();
-  if (!uci) {
-    ui.setErrorMessage("Move input is required.");
-    return;
-  }
+if (ui.elements.submitMoveButton && ui.elements.uciInput) {
+  ui.elements.submitMoveButton.addEventListener("click", async () => {
+    const uci = ui.elements.uciInput.value.trim();
+    if (!uci) {
+      ui.setErrorMessage("Move input is required.");
+      return;
+    }
 
-  await interaction.submitManualMove(uci);
-});
+    await interaction.submitManualMove(uci);
+  });
 
-ui.elements.uciInput.addEventListener("keydown", async (event) => {
-  if (event.key !== "Enter") {
-    return;
-  }
+  ui.elements.uciInput.addEventListener("keydown", async (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
 
-  event.preventDefault();
-  ui.elements.submitMoveButton.click();
-});
+    event.preventDefault();
+    ui.elements.submitMoveButton.click();
+  });
+}
 
 ui.elements.loadFenButton.addEventListener("click", async () => {
-  const fen = ui.elements.fenInput.value.trim();
+  const fen = ui.elements.importInput.value.trim();
   if (!fen) {
     ui.setErrorMessage("FEN input is required.");
     return;
@@ -156,13 +194,13 @@ ui.elements.loadFenButton.addEventListener("click", async () => {
     clearHighlights();
     interaction.enable();
     state.gameStarted = true;
-    ui.elements.fenInput.value = "";
+    ui.elements.importInput.value = "";
     ui.setInfoMessage("FEN loaded.");
   }, "Loading FEN...");
 });
 
 ui.elements.loadPgnButton.addEventListener("click", async () => {
-  const pgn = ui.elements.pgnInput.value.trim();
+  const pgn = ui.elements.importInput.value.trim();
   if (!pgn) {
     ui.setErrorMessage("PGN input is required.");
     return;
@@ -177,6 +215,7 @@ ui.elements.loadPgnButton.addEventListener("click", async () => {
     clearHighlights();
     interaction.enable();
     state.gameStarted = true;
+    ui.elements.importInput.value = "";
     ui.setInfoMessage("PGN replay loaded at start position.");
   }, "Loading PGN replay...");
 });

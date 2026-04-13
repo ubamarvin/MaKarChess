@@ -45,40 +45,9 @@
   <body>
     <div class="app-shell">
       <aside class="control-panel">
-        <div class="panel-section">
+        <div class="panel-section panel-header">
           <h1>MaKarChess</h1>
           <p id="connection-status" class="subtle">Checking backend...</p>
-        </div>
-
-        <div class="panel-section controls-grid">
-          <label>
-            <span>Bot Type</span>
-            <select id="bot-type">
-              <option value="">none</option>
-              <option value="random">random</option>
-              <option value="greedy">greedy</option>
-              <option value="defensive">defensive</option>
-              <option value="aggressive">aggressive</option>
-            </select>
-          </label>
-
-          <label>
-            <span>Bot Plays</span>
-            <select id="bot-plays">
-              <option value="">none</option>
-              <option value="white">white</option>
-              <option value="black">black</option>
-            </select>
-          </label>
-
-          <label>
-            <span>Modeled Side</span>
-            <select id="modeled-side">
-              <option value="">none</option>
-              <option value="white">white</option>
-              <option value="black">black</option>
-            </select>
-          </label>
         </div>
 
         <div class="panel-section button-row">
@@ -86,28 +55,17 @@
           <button id="reset-game-button">Reset Game</button>
         </div>
 
-        <div class="panel-section move-form">
-          <label>
-            <span>UCI Move</span>
-            <input id="uci-input" type="text" placeholder="e2e4" autocomplete="off" />
-          </label>
-          <button id="submit-move-button">Submit Move</button>
-        </div>
+        
 
         <div class="panel-section move-form">
           <label>
-            <span>FEN</span>
-            <textarea id="fen-input" rows="3" placeholder="4k3/8/8/8/8/8/8/4K3 w - - 0 1"></textarea>
+            <span>Import FEN / PGN</span>
+            <textarea id="import-input" rows="5" placeholder="FEN: 4k3/8/8/8/8/8/8/4K3 w - - 0 1&#10;PGN: 1. e4 e5 2. Nf3 Nc6"></textarea>
           </label>
-          <button id="load-fen-button">Load FEN</button>
-        </div>
-
-        <div class="panel-section move-form">
-          <label>
-            <span>PGN Replay</span>
-            <textarea id="pgn-input" rows="5" placeholder="1. e4 e5 2. Nf3 Nc6"></textarea>
-          </label>
-          <button id="load-pgn-button">Load PGN Replay</button>
+          <div class="button-row import-button-row">
+            <button id="load-fen-button">Load FEN</button>
+            <button id="load-pgn-button">Load PGN</button>
+          </div>
         </div>
 
         <div class="panel-section button-row">
@@ -138,6 +96,51 @@
       <main class="board-panel">
         <div id="board-container" class="board-container"></div>
       </main>
+    </div>
+
+    <div id="new-game-modal" class="modal-overlay hidden" aria-hidden="true">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="new-game-modal-title">
+        <div class="modal-header">
+          <h2 id="new-game-modal-title">Start New Game</h2>
+          <button id="close-new-game-modal-button" class="modal-close-button" type="button" aria-label="Close new game dialog">Close</button>
+        </div>
+
+        <div class="controls-grid modal-controls-grid">
+          <label>
+            <span>Bot Type</span>
+            <select id="bot-type">
+              <option value="">none</option>
+              <option value="random">random</option>
+              <option value="greedy">greedy</option>
+              <option value="defensive">defensive</option>
+              <option value="aggressive">aggressive</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Bot Plays</span>
+            <select id="bot-plays">
+              <option value="">none</option>
+              <option value="white">white</option>
+              <option value="black">black</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Modeled Side</span>
+            <select id="modeled-side">
+              <option value="">none</option>
+              <option value="white">white</option>
+              <option value="black">black</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button id="cancel-new-game-button" type="button" class="secondary-button">Cancel</button>
+          <button id="confirm-new-game-button" type="button">Start Game</button>
+        </div>
+      </div>
     </div>
 
     <script type="module" src="./js/main.js"></script>
