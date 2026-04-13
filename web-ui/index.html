@@ -84,7 +84,6 @@
         <div class="panel-section button-row">
           <button id="new-game-button">New Game</button>
           <button id="reset-game-button">Reset Game</button>
-          <button id="refresh-button">Refresh Board</button>
         </div>
 
         <div class="panel-section move-form">
@@ -93,6 +92,27 @@
             <input id="uci-input" type="text" placeholder="e2e4" autocomplete="off" />
           </label>
           <button id="submit-move-button">Submit Move</button>
+        </div>
+
+        <div class="panel-section move-form">
+          <label>
+            <span>FEN</span>
+            <textarea id="fen-input" rows="3" placeholder="4k3/8/8/8/8/8/8/4K3 w - - 0 1"></textarea>
+          </label>
+          <button id="load-fen-button">Load FEN</button>
+        </div>
+
+        <div class="panel-section move-form">
+          <label>
+            <span>PGN Replay</span>
+            <textarea id="pgn-input" rows="5" placeholder="1. e4 e5 2. Nf3 Nc6"></textarea>
+          </label>
+          <button id="load-pgn-button">Load PGN Replay</button>
+        </div>
+
+        <div class="panel-section button-row">
+          <button id="replay-back-button">Replay Back</button>
+          <button id="replay-forward-button">Replay Forward</button>
         </div>
 
         <div class="panel-section">
@@ -104,6 +124,7 @@
             <div><dt>Check</dt><dd id="is-check">-</dd></div>
             <div><dt>Status Line</dt><dd id="status-line">-</dd></div>
             <div><dt>Current Player</dt><dd id="current-player-line">-</dd></div>
+            <div><dt>Replay</dt><dd id="replay-status">inactive</dd></div>
             <div><dt>Selected Square</dt><dd id="selected-square">-</dd></div>
           </dl>
         </div>

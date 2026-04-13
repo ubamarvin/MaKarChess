@@ -67,6 +67,9 @@ http://127.0.0.1:4173
 6. Play by either:
    - entering a UCI move such as `e2e4`
    - clicking a source square and then a target square
+7. Optionally paste a FEN string and click `Load FEN`.
+8. Optionally paste a PGN string and click `Load PGN Replay`.
+9. Use `Replay Back` and `Replay Forward` to move through a loaded replay.
 
 ## Available UI controls
 
@@ -74,12 +77,18 @@ The web UI includes:
 
 - `New Game`
 - `Reset Game`
-- `Refresh Board`
 - `Bot Type` dropdown
 - `Bot Plays` dropdown
 - `Modeled Side` dropdown
 - `UCI Move` input
 - `Submit Move`
+- `FEN` text area
+- `Load FEN`
+- `PGN Replay` text area
+- `Load PGN Replay`
+- `Replay Back`
+- `Replay Forward`
+- replay status display
 
 ## Route usage
 
@@ -131,21 +140,9 @@ POST http://127.0.0.1:8080/game/reset
 
 This resets the game to the initial position and returns a fresh `GameStateResponse`.
 
-### `GET /game/board`
-
-Used when the user clicks `Refresh Board`.
-
-Example:
-
-```text
-GET http://127.0.0.1:8080/game/board
-```
-
-The frontend uses the returned board state to rerender the pieces.
-
 ### `GET /game/status`
 
-Used after `New Game`, after a successful move, and on `Refresh Board`.
+Used after `New Game`, after a successful move, after FEN/PGN load, and after replay stepping.
 
 Example:
 
@@ -161,6 +158,87 @@ The frontend uses it to show:
 - check state
 - status line
 - current player line
+
+### `GET /game/replay`
+
+Used to keep the replay controls and replay status display synchronized with backend replay state.
+
+Example:
+
+```text
+GET http://127.0.0.1:8080/game/replay
+```
+
+The frontend uses it to show:
+
+- whether replay mode is active
+- current replay index
+- replay length
+- whether replay buttons should be enabled or disabled
+
+### `POST /game/fen`
+
+Used when the user clicks `Load FEN`.
+
+Example request body:
+
+```json
+{
+  "fen": "4k3/8/8/8/8/8/8/4K3 w - - 0 1"
+}
+```
+
+Example:
+
+```text
+POST http://127.0.0.1:8080/game/fen
+```
+
+This route replaces the current board position and returns the updated `GameStateResponse`.
+
+### `POST /game/pgn`
+
+Used when the user clicks `Load PGN Replay`.
+
+Example request body:
+
+```json
+{
+  "pgn": "1. e4 e5 2. Nf3 Nc6"
+}
+```
+
+Example:
+
+```text
+POST http://127.0.0.1:8080/game/pgn
+```
+
+This route loads replay mode at the **start position** and returns the current replay `GameStateResponse`.
+
+### `POST /game/replay/backward`
+
+Used when the user clicks `Replay Back`.
+
+Example:
+
+```text
+POST http://127.0.0.1:8080/game/replay/backward
+```
+
+The backend returns the updated replay board state one step earlier.
+
+### `POST /game/replay/forward`
+
+Used when the user clicks `Replay Forward`.
+
+Example:
+
+```text
+POST http://127.0.0.1:8080/game/replay/forward
+```
+
+The backend returns the updated replay board state one step later.
 
 ### `POST /game/move`
 
@@ -203,13 +281,35 @@ When the user clicks `Reset Game`:
 - it rerenders the board
 - it refreshes the status panel
 
-### Refresh Board
+### Load FEN
 
-When the user clicks `Refresh Board`:
+When the user pastes a FEN string and clicks `Load FEN`:
 
-- the frontend calls `GET /game/board`
-- the frontend calls `GET /game/status`
-- it rerenders the board and status panel from current backend state
+- the frontend sends `POST /game/fen`
+- it rerenders the board from the loaded position
+- it refreshes `/game/status`
+- it refreshes `/game/replay`
+- replay controls become inactive unless a replay is later loaded
+
+### Load PGN Replay
+
+When the user pastes a PGN string and clicks `Load PGN Replay`:
+
+- the frontend sends `POST /game/pgn`
+- it rerenders the board at replay index `0`
+- it refreshes `/game/status`
+- it refreshes `/game/replay`
+- replay navigation buttons are enabled according to the replay bounds
+
+### Replay navigation
+
+When the user clicks `Replay Back` or `Replay Forward`:
+
+- the frontend sends the matching replay step request
+- it rerenders the board from the returned replay state
+- it refreshes `/game/status`
+- it refreshes `/game/replay`
+- button enablement updates automatically at replay boundaries
 
 ### Manual UCI input
 
@@ -218,6 +318,7 @@ When the user enters a move in the text field and clicks `Submit Move`:
 - the frontend sends `POST /game/move`
 - on success it rerenders the board
 - it refreshes the status panel
+- it refreshes replay status
 - on error it shows the backend error message
 
 ### Click-to-move
@@ -230,6 +331,8 @@ The 3D board also supports click-to-move:
 - the frontend sends that move through `POST /game/move`
 
 The frontend does not validate chess legality itself. The backend remains the source of truth.
+
+Normal move submission also clears replay mode on the backend, so replay status becomes inactive after a successful non-replay move.
 
 ## Browser/service worker note
 

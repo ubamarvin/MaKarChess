@@ -6,6 +6,8 @@ import makarchess.api.dto.*
 
 object JsonCodecs:
   given Codec[GameConfigRequest] = deriveCodec
+  given Codec[FenRequest] = deriveCodec
+  given Codec[PgnRequest] = deriveCodec
   given Codec[MoveRequest] = deriveCodec
   given Codec[ErrorResponse] = deriveCodec
   given Codec[HealthResponse] = deriveCodec
@@ -16,3 +18,4 @@ object JsonCodecs:
   given Codec[GamePhaseResponse] = deriveCodec
   given Codec[GameStateResponse] = deriveCodec
   given Codec[GameStatusResponse] = deriveCodec
+  given Codec[ReplayStatusResponse] = deriveCodec

@@ -2,7 +2,7 @@ package makarchess.controller
 
 import makarchess.opponentmodel.HighlightSquare
 import makarchess.opponentmodel.{PredictionResult, StyleEstimate}
-import makarchess.model.{ChessModel, ChessState, Color, Fen, GameSnapshot, MoveAttemptError, PgnGame, PgnReplay, PgnReplayCursor, PieceType, Position}
+import makarchess.model.{ChessModel, ChessRules, ChessState, Color, Fen, GameSnapshot, MoveAttemptError, PgnGame, PgnReplay, PgnReplayCursor, PieceType, Position}
 import makarchess.parser.api.ParserBackend
 import makarchess.parser.{FenParser, ParserModule, PgnParser}
 import makarchess.persistence.{FenFileService, GameStateJsonService, LocalFileIO, PgnFileService}
@@ -35,6 +35,9 @@ class ChessController(
 
   private var currentModel: ChessModel = initialModel
   private var activeReplayCursor: Option[PgnReplayCursor] = None
+
+  private def initialReplayState: ChessState =
+    ChessRules.initialState
 
   private var opponentModelHighlightsState: Vector[HighlightSquare] = Vector.empty
 
@@ -114,7 +117,7 @@ class ChessController(
   def loadPgnFromString(input: String): Either[String, ChessState] =
     for
       pgn <- pgnParser.parse(input)
-      cursor <- PgnReplay.buildCursor(currentModel.chessState, pgn.moves)
+      cursor <- PgnReplay.buildCursor(initialReplayState, pgn.moves)
       state <- cursor.jumpToEnd().currentState
     yield
       activeReplayCursor = Some(cursor.jumpToEnd())
@@ -123,7 +126,7 @@ class ChessController(
   def loadPgnFromFile(path: String): Either[String, ChessState] =
     for
       pgn <- pgnFileService.load(path)
-      cursor <- PgnReplay.buildCursor(currentModel.chessState, pgn.moves)
+      cursor <- PgnReplay.buildCursor(initialReplayState, pgn.moves)
       state <- cursor.jumpToEnd().currentState
     yield
       activeReplayCursor = Some(cursor.jumpToEnd())
@@ -138,7 +141,7 @@ class ChessController(
   def replayPgnFromString(input: String): Either[String, PgnReplayCursor] =
     for
       pgn <- pgnParser.parse(input)
-      replay <- PgnReplay.buildCursor(currentModel.chessState, pgn.moves)
+      replay <- PgnReplay.buildCursor(initialReplayState, pgn.moves)
     yield replay
 
   def hasActiveReplay: Boolean =
@@ -161,7 +164,7 @@ class ChessController(
   def loadReplayFromPgnFile(path: String): Either[String, ChessState] =
     for
       pgn <- pgnFileService.load(path)
-      cursor <- PgnReplay.buildCursor(currentModel.chessState, pgn.moves)
+      cursor <- PgnReplay.buildCursor(initialReplayState, pgn.moves)
       state <- cursor.currentState
     yield
       activeReplayCursor = Some(cursor)

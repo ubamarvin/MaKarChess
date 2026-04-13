@@ -6,15 +6,21 @@ export function createUiBindings() {
     modeledSide: document.getElementById("modeled-side"),
     newGameButton: document.getElementById("new-game-button"),
     resetGameButton: document.getElementById("reset-game-button"),
-    refreshButton: document.getElementById("refresh-button"),
     uciInput: document.getElementById("uci-input"),
     submitMoveButton: document.getElementById("submit-move-button"),
+    fenInput: document.getElementById("fen-input"),
+    loadFenButton: document.getElementById("load-fen-button"),
+    pgnInput: document.getElementById("pgn-input"),
+    loadPgnButton: document.getElementById("load-pgn-button"),
+    replayBackButton: document.getElementById("replay-back-button"),
+    replayForwardButton: document.getElementById("replay-forward-button"),
     sideToMove: document.getElementById("side-to-move"),
     phaseTag: document.getElementById("phase-tag"),
     phaseWinner: document.getElementById("phase-winner"),
     isCheck: document.getElementById("is-check"),
     statusLine: document.getElementById("status-line"),
     currentPlayerLine: document.getElementById("current-player-line"),
+    replayStatus: document.getElementById("replay-status"),
     selectedSquare: document.getElementById("selected-square"),
     infoMessage: document.getElementById("info-message"),
     errorMessage: document.getElementById("error-message")
@@ -66,12 +72,19 @@ export function createUiBindings() {
     const disabled = Boolean(isLoading);
     elements.newGameButton.disabled = disabled;
     elements.resetGameButton.disabled = disabled;
-    elements.refreshButton.disabled = disabled;
     elements.submitMoveButton.disabled = disabled;
+    elements.loadFenButton.disabled = disabled;
+    elements.loadPgnButton.disabled = disabled;
     elements.uciInput.disabled = disabled;
+    elements.fenInput.disabled = disabled;
+    elements.pgnInput.disabled = disabled;
     elements.botType.disabled = disabled;
     elements.botPlays.disabled = disabled;
     elements.modeledSide.disabled = disabled;
+    if (disabled) {
+      elements.replayBackButton.disabled = true;
+      elements.replayForwardButton.disabled = true;
+    }
   }
 
   function renderStatus(status, boardState = null) {
@@ -84,6 +97,21 @@ export function createUiBindings() {
     elements.currentPlayerLine.textContent = status?.currentPlayerLine || "-";
   }
 
+  function renderReplayStatus(replay) {
+    if (!replay?.active) {
+      elements.replayStatus.textContent = "inactive";
+      elements.replayBackButton.disabled = true;
+      elements.replayForwardButton.disabled = true;
+      return;
+    }
+
+    const index = replay.index ?? 0;
+    const length = replay.length ?? 0;
+    elements.replayStatus.textContent = `${index}/${length}`;
+    elements.replayBackButton.disabled = index <= 0;
+    elements.replayForwardButton.disabled = index >= length;
+  }
+
   return {
     elements,
     readNewGameConfig,
@@ -94,6 +122,7 @@ export function createUiBindings() {
     clearErrorMessage,
     setSelectedSquare,
     setLoading,
-    renderStatus
+    renderStatus,
+    renderReplayStatus
   };
 }

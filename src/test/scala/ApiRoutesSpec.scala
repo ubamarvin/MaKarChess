@@ -85,6 +85,101 @@ class ApiRoutesSpec extends CatsEffectSuite:
     }
   }
 
+  test("POST /game/fen loads a FEN position") {
+    val request = Request[IO](POST, uri = uri"/game/fen").withEntity(
+      parse("""{"fen":"4k3/8/8/8/8/8/8/4K3 w - - 0 1"}""").toOption.get
+    )
+
+    app.run(request).flatMap { response =>
+      response.as[Json].map { json =>
+        assertEquals(response.status, Status.Ok)
+        assertEquals(json.hcursor.downField("board").values.map(_.size), Some(2))
+        assertEquals(json.hcursor.get[String]("sideToMove"), Right("White"))
+      }
+    }
+  }
+
+  test("POST /game/fen rejects invalid FEN") {
+    val request = Request[IO](POST, uri = uri"/game/fen").withEntity(
+      parse("""{"fen":"not-a-fen"}""").toOption.get
+    )
+
+    app.run(request).flatMap { response =>
+      response.as[Json].map { json =>
+        assertEquals(response.status, Status.BadRequest)
+        assert(json.hcursor.get[String]("message").isRight)
+      }
+    }
+  }
+
+  test("POST /game/pgn loads replay at the start position and GET /game/replay reports metadata") {
+    val api = app
+    val request = Request[IO](POST, uri = uri"/game/pgn").withEntity(
+      parse("""{"pgn":"1. e4 e5 2. Nf3 Nc6"}""").toOption.get
+    )
+
+    for
+      loadResponse <- api.run(request)
+      loadJson <- loadResponse.as[Json]
+      replayResponse <- api.run(Request[IO](GET, uri = uri"/game/replay"))
+      replayJson <- replayResponse.as[Json]
+    yield
+      assertEquals(loadResponse.status, Status.Ok)
+      assertEquals(loadJson.hcursor.get[String]("sideToMove"), Right("White"))
+      assertEquals(replayResponse.status, Status.Ok)
+      assertEquals(replayJson.hcursor.get[Boolean]("active"), Right(true))
+      assertEquals(replayJson.hcursor.get[Int]("index"), Right(0))
+      assertEquals(replayJson.hcursor.get[Int]("length"), Right(4))
+  }
+
+  test("POST /game/replay/forward and backward step through an active replay") {
+    val api = app
+    val load = Request[IO](POST, uri = uri"/game/pgn").withEntity(
+      parse("""{"pgn":"1. e4 e5"}""").toOption.get
+    )
+    val forward = Request[IO](POST, uri = uri"/game/replay/forward")
+    val backward = Request[IO](POST, uri = uri"/game/replay/backward")
+
+    for
+      _ <- api.run(load)
+      forwardResponse <- api.run(forward)
+      forwardJson <- forwardResponse.as[Json]
+      backwardResponse <- api.run(backward)
+      backwardJson <- backwardResponse.as[Json]
+    yield
+      assertEquals(forwardResponse.status, Status.Ok)
+      assertEquals(forwardJson.hcursor.get[String]("sideToMove"), Right("Black"))
+      assertEquals(backwardResponse.status, Status.Ok)
+      assertEquals(backwardJson.hcursor.get[String]("sideToMove"), Right("White"))
+  }
+
+  test("POST /game/replay/forward without active replay returns 409") {
+    app.run(Request[IO](POST, uri = uri"/game/replay/forward")).flatMap { response =>
+      response.as[Json].map { json =>
+        assertEquals(response.status, Status.Conflict)
+        assertEquals(json.hcursor.get[String]("message"), Right("No PGN replay loaded."))
+      }
+    }
+  }
+
+  test("normal move clears replay state") {
+    val api = app
+    val load = Request[IO](POST, uri = uri"/game/pgn").withEntity(
+      parse("""{"pgn":"1. e4 e5"}""").toOption.get
+    )
+    val move = Request[IO](POST, uri = uri"/game/move").withEntity(parse("""{"uci":"e2e4"}""").toOption.get)
+    val replay = Request[IO](GET, uri = uri"/game/replay")
+
+    for
+      _ <- api.run(load)
+      _ <- api.run(move)
+      replayResponse <- api.run(replay)
+      replayJson <- replayResponse.as[Json]
+    yield
+      assertEquals(replayResponse.status, Status.Ok)
+      assertEquals(replayJson.hcursor.get[Boolean]("active"), Right(false))
+  }
+
   test("POST /game/move applies a legal move and returns updated state") {
     val request = Request[IO](POST, uri = uri"/game/move").withEntity(parse("""{"uci":"e2e4"}""").toOption.get)
     app.run(request).flatMap { response =>

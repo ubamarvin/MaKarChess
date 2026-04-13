@@ -35,6 +35,42 @@ final class ApiGameService(registry: GameRegistry):
     val controller = registry.currentController
     Right(toGameStatusResponse(controller.model.chessState, controller.snapshot))
 
+  def replayStatus(): Either[ApiError, ReplayStatusResponse] =
+    val controller = registry.currentController
+    Right(
+      ReplayStatusResponse(
+        active = controller.hasActiveReplay,
+        index = controller.replayIndex,
+        length = controller.replayLength
+      )
+    )
+
+  def loadFen(request: FenRequest): Either[ApiError, GameStateResponse] =
+    val trimmed = Option(request.fen).map(_.trim).getOrElse("")
+    if trimmed.isEmpty then Left(BadRequest("FEN input is required."))
+    else
+      registry.currentController.loadFenFromString(trimmed) match
+        case Right(state) => Right(toGameStateResponse(state))
+        case Left(message) => Left(BadRequest(message))
+
+  def loadPgnReplay(request: PgnRequest): Either[ApiError, GameStateResponse] =
+    val trimmed = Option(request.pgn).map(_.trim).getOrElse("")
+    if trimmed.isEmpty then Left(BadRequest("PGN input is required."))
+    else
+      registry.currentController.loadReplayFromPgnString(trimmed) match
+        case Right(state) => Right(toGameStateResponse(state))
+        case Left(message) => Left(BadRequest(message))
+
+  def replayForward(): Either[ApiError, GameStateResponse] =
+    registry.currentController.stepReplayForward() match
+      case Right(state) => Right(toGameStateResponse(state))
+      case Left(message) => Left(Conflict(message))
+
+  def replayBackward(): Either[ApiError, GameStateResponse] =
+    registry.currentController.stepReplayBackward() match
+      case Right(state) => Right(toGameStateResponse(state))
+      case Left(message) => Left(Conflict(message))
+
   def makeMove(uci: String): Either[ApiError, GameStateResponse] =
     val trimmed = Option(uci).map(_.trim).getOrElse("")
     if trimmed.isEmpty then Left(BadRequest("Move input is required."))

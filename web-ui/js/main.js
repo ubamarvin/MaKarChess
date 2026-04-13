@@ -1,4 +1,17 @@
-import { health, newGame, resetGame, getBoard, getStatus, makeMove, ApiClientError } from "./api.js";
+import {
+  health,
+  newGame,
+  resetGame,
+  getBoard,
+  getStatus,
+  getReplayStatus,
+  loadFen,
+  loadPgnReplay,
+  replayForward,
+  replayBackward,
+  makeMove,
+  ApiClientError
+} from "./api.js";
 import { createScene } from "./scene.js";
 import { createBoard, clearHighlights } from "./board.js";
 import { clearPieces, renderPieces } from "./pieces.js";
@@ -8,6 +21,7 @@ import { createInteractionController } from "./interaction.js";
 const state = {
   currentBoardResponse: null,
   currentStatusResponse: null,
+  currentReplayResponse: null,
   loading: false,
   gameStarted: false
 };
@@ -28,10 +42,14 @@ function renderStatus(status = state.currentStatusResponse, boardState = state.c
   ui.renderStatus(status, boardState);
 }
 
-async function refreshStatusAndBoard() {
-  const [boardState, status] = await Promise.all([getBoard(), getStatus()]);
-  renderBoardState(boardState);
-  renderStatus(status, boardState);
+function renderReplayStatus(replay = state.currentReplayResponse) {
+  state.currentReplayResponse = replay;
+  ui.renderReplayStatus(replay);
+}
+
+async function refreshReplayStatus() {
+  const replay = await getReplayStatus();
+  renderReplayStatus(replay);
 }
 
 async function runWithUiFeedback(action, infoMessage = "") {
@@ -57,8 +75,9 @@ async function handleMoveRequest(uci) {
   await runWithUiFeedback(async () => {
     const boardState = await makeMove(uci);
     renderBoardState(boardState);
-    const status = await getStatus();
+    const [status, replay] = await Promise.all([getStatus(), getReplayStatus()]);
     renderStatus(status, boardState);
+    renderReplayStatus(replay);
     ui.elements.uciInput.value = "";
     ui.setInfoMessage(`Move applied: ${uci}`);
   }, `Submitting move ${uci}...`);
@@ -78,8 +97,9 @@ ui.elements.newGameButton.addEventListener("click", async () => {
     const config = ui.readNewGameConfig();
     const boardState = await newGame(config);
     renderBoardState(boardState);
-    const status = await getStatus();
+    const [status, replay] = await Promise.all([getStatus(), getReplayStatus()]);
     renderStatus(status, boardState);
+    renderReplayStatus(replay);
     clearHighlights();
     interaction.enable();
     state.gameStarted = true;
@@ -91,24 +111,14 @@ ui.elements.resetGameButton.addEventListener("click", async () => {
   await runWithUiFeedback(async () => {
     const boardState = await resetGame();
     renderBoardState(boardState);
-    const status = await getStatus();
+    const [status, replay] = await Promise.all([getStatus(), getReplayStatus()]);
     renderStatus(status, boardState);
+    renderReplayStatus(replay);
     clearHighlights();
     interaction.enable();
     state.gameStarted = true;
     ui.setInfoMessage("Game reset.");
   }, "Resetting game...");
-});
-
-ui.elements.refreshButton.addEventListener("click", async () => {
-  await runWithUiFeedback(async () => {
-    await refreshStatusAndBoard();
-    if (state.currentBoardResponse) {
-      state.gameStarted = true;
-      interaction.enable();
-    }
-    ui.setInfoMessage("Board refreshed.");
-  }, "Refreshing board...");
 });
 
 ui.elements.submitMoveButton.addEventListener("click", async () => {
@@ -130,13 +140,82 @@ ui.elements.uciInput.addEventListener("keydown", async (event) => {
   ui.elements.submitMoveButton.click();
 });
 
+ui.elements.loadFenButton.addEventListener("click", async () => {
+  const fen = ui.elements.fenInput.value.trim();
+  if (!fen) {
+    ui.setErrorMessage("FEN input is required.");
+    return;
+  }
+
+  await runWithUiFeedback(async () => {
+    const boardState = await loadFen(fen);
+    renderBoardState(boardState);
+    const [status, replay] = await Promise.all([getStatus(), getReplayStatus()]);
+    renderStatus(status, boardState);
+    renderReplayStatus(replay);
+    clearHighlights();
+    interaction.enable();
+    state.gameStarted = true;
+    ui.elements.fenInput.value = "";
+    ui.setInfoMessage("FEN loaded.");
+  }, "Loading FEN...");
+});
+
+ui.elements.loadPgnButton.addEventListener("click", async () => {
+  const pgn = ui.elements.pgnInput.value.trim();
+  if (!pgn) {
+    ui.setErrorMessage("PGN input is required.");
+    return;
+  }
+
+  await runWithUiFeedback(async () => {
+    const boardState = await loadPgnReplay(pgn);
+    renderBoardState(boardState);
+    const [status, replay] = await Promise.all([getStatus(), getReplayStatus()]);
+    renderStatus(status, boardState);
+    renderReplayStatus(replay);
+    clearHighlights();
+    interaction.enable();
+    state.gameStarted = true;
+    ui.setInfoMessage("PGN replay loaded at start position.");
+  }, "Loading PGN replay...");
+});
+
+ui.elements.replayBackButton.addEventListener("click", async () => {
+  await runWithUiFeedback(async () => {
+    const boardState = await replayBackward();
+    renderBoardState(boardState);
+    const [status, replay] = await Promise.all([getStatus(), getReplayStatus()]);
+    renderStatus(status, boardState);
+    renderReplayStatus(replay);
+    clearHighlights();
+    interaction.enable();
+    ui.setInfoMessage("Replay stepped backward.");
+  }, "Stepping replay backward...");
+});
+
+ui.elements.replayForwardButton.addEventListener("click", async () => {
+  await runWithUiFeedback(async () => {
+    const boardState = await replayForward();
+    renderBoardState(boardState);
+    const [status, replay] = await Promise.all([getStatus(), getReplayStatus()]);
+    renderStatus(status, boardState);
+    renderReplayStatus(replay);
+    clearHighlights();
+    interaction.enable();
+    ui.setInfoMessage("Replay stepped forward.");
+  }, "Stepping replay forward...");
+});
+
 (async function bootstrap() {
   ui.setLoading(false);
   interaction.disable();
   renderStatus(null, null);
+  renderReplayStatus({ active: false, index: null, length: null });
   try {
     const result = await health();
     ui.setConnectionStatus(`Backend status: ${result.status}`);
+    await refreshReplayStatus();
     ui.setInfoMessage("Click New Game to start");
   } catch (error) {
     const message = error instanceof ApiClientError ? error.message : "Backend not reachable.";

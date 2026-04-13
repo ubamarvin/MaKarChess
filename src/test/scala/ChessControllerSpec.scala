@@ -84,5 +84,24 @@ class ChessControllerSpec extends FunSuite:
     assertEquals(controller.replayIndex, Some(0))
   }
 
+  test("controller can reload the same or a different PGN replay repeatedly") {
+    val model = ChessModel()
+    val controller = ChessController(model)
+    val firstPgn = "1. e4 e5 2. Nf3 Nc6"
+    val secondPgn = "1. d4 d5 2. c4"
+
+    assertEquals(controller.loadReplayFromPgnString(firstPgn).isRight, true)
+    assertEquals(controller.stepReplayForward().isRight, true)
+    assertEquals(controller.replayIndex, Some(1))
+
+    assertEquals(controller.loadReplayFromPgnString(firstPgn).isRight, true)
+    assertEquals(controller.hasActiveReplay, true)
+    assertEquals(controller.replayIndex, Some(0))
+
+    assertEquals(controller.loadReplayFromPgnString(secondPgn).isRight, true)
+    assertEquals(controller.hasActiveReplay, true)
+    assertEquals(controller.replayIndex, Some(0))
+  }
+
 end ChessControllerSpec
 

@@ -80,6 +80,26 @@ export function getStatus() {
   return request("/game/status");
 }
 
+export function getReplayStatus() {
+  return request("/game/replay");
+}
+
+export function loadFen(fen) {
+  return request("/game/fen", buildJsonOptions("POST", { fen }));
+}
+
+export function loadPgnReplay(pgn) {
+  return request("/game/pgn", buildJsonOptions("POST", { pgn }));
+}
+
+export function replayForward() {
+  return request("/game/replay/forward", buildJsonOptions("POST"));
+}
+
+export function replayBackward() {
+  return request("/game/replay/backward", buildJsonOptions("POST"));
+}
+
 export function makeMove(uci) {
   return request("/game/move", buildJsonOptions("POST", { uci }));
 }

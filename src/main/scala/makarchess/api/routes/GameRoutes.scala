@@ -12,11 +12,14 @@ import org.http4s.dsl.Http4sDsl
 
 final class GameRoutes[F[_]: Concurrent](service: ApiGameService) extends Http4sDsl[F]:
   private given org.http4s.EntityDecoder[F, GameConfigRequest] = jsonOf[F, GameConfigRequest]
+  private given org.http4s.EntityDecoder[F, FenRequest] = jsonOf[F, FenRequest]
+  private given org.http4s.EntityDecoder[F, PgnRequest] = jsonOf[F, PgnRequest]
   private given org.http4s.EntityDecoder[F, MoveRequest] = jsonOf[F, MoveRequest]
   private given org.http4s.EntityEncoder[F, ErrorResponse] = jsonEncoderOf[F, ErrorResponse]
   private given org.http4s.EntityEncoder[F, HealthResponse] = jsonEncoderOf[F, HealthResponse]
   private given org.http4s.EntityEncoder[F, GameStateResponse] = jsonEncoderOf[F, GameStateResponse]
   private given org.http4s.EntityEncoder[F, GameStatusResponse] = jsonEncoderOf[F, GameStatusResponse]
+  private given org.http4s.EntityEncoder[F, ReplayStatusResponse] = jsonEncoderOf[F, ReplayStatusResponse]
 
   val routes: HttpRoutes[F] = HttpRoutes.of[F] {
     case GET -> Root / "health" =>
@@ -39,6 +42,29 @@ final class GameRoutes[F[_]: Concurrent](service: ApiGameService) extends Http4s
 
     case GET -> Root / "game" / "status" =>
       respond(service.currentStatus())
+
+    case GET -> Root / "game" / "replay" =>
+      respond(service.replayStatus())
+
+    case req @ POST -> Root / "game" / "fen" =>
+      req.attemptAs[FenRequest].value.flatMap {
+        case Right(fenRequest) => respond(service.loadFen(fenRequest))
+        case Left(_: DecodingFailure) => BadRequest(ErrorResponse("Malformed JSON request."))
+        case Left(_) => BadRequest(ErrorResponse("Malformed JSON request."))
+      }
+
+    case req @ POST -> Root / "game" / "pgn" =>
+      req.attemptAs[PgnRequest].value.flatMap {
+        case Right(pgnRequest) => respond(service.loadPgnReplay(pgnRequest))
+        case Left(_: DecodingFailure) => BadRequest(ErrorResponse("Malformed JSON request."))
+        case Left(_) => BadRequest(ErrorResponse("Malformed JSON request."))
+      }
+
+    case POST -> Root / "game" / "replay" / "forward" =>
+      respond(service.replayForward())
+
+    case POST -> Root / "game" / "replay" / "backward" =>
+      respond(service.replayBackward())
 
     case req @ POST -> Root / "game" / "move" =>
       req.attemptAs[MoveRequest].value.flatMap {

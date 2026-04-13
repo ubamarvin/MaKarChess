@@ -68,6 +68,26 @@ Used by `POST /game/move`.
 }
 ```
 
+### `FenRequest`
+
+Used by `POST /game/fen`.
+
+```json
+{
+  "fen": "4k3/8/8/8/8/8/8/4K3 w - - 0 1"
+}
+```
+
+### `PgnRequest`
+
+Used by `POST /game/pgn`.
+
+```json
+{
+  "pgn": "1. e4 e5 2. Nf3 Nc6"
+}
+```
+
 ### `ErrorResponse`
 
 Used for `400`, `409`, and possible `500` responses.
@@ -135,6 +155,18 @@ Returned by `GET /game/status`.
   "statusLine": "",
   "currentPlayerLine": "White to move",
   "isCheck": false
+}
+```
+
+### `ReplayStatusResponse`
+
+Returned by `GET /game/replay`.
+
+```json
+{
+  "active": true,
+  "index": 0,
+  "length": 4
 }
 ```
 
@@ -346,6 +378,139 @@ curl http://127.0.0.1:8080/game/status
 
 - `200 OK`
 
+## `GET /game/replay`
+
+Returns replay metadata for the current shared game.
+
+### Example
+
+```bash
+curl http://127.0.0.1:8080/game/replay
+```
+
+### Success response
+
+```json
+{
+  "active": true,
+  "index": 0,
+  "length": 4
+}
+```
+
+### Notes
+
+- `active` is `true` only when a PGN replay is currently loaded.
+- `index` is the current replay cursor position.
+- `length` is the last valid replay index.
+- if replay is inactive, `index` and `length` are `null`.
+
+### Status codes
+
+- `200 OK`
+
+## `POST /game/fen`
+
+Loads a board position from a FEN string and replaces the current game state.
+
+### Request body
+
+```json
+{
+  "fen": "4k3/8/8/8/8/8/8/4K3 w - - 0 1"
+}
+```
+
+### Example
+
+```bash
+curl -X POST http://127.0.0.1:8080/game/fen \
+  -H "Content-Type: application/json" \
+  -d '{"fen":"4k3/8/8/8/8/8/8/4K3 w - - 0 1"}'
+```
+
+### Success response
+
+Returns the updated `GameStateResponse` for the loaded FEN position.
+
+### Status codes
+
+- `200 OK`
+- `400 Bad Request`
+
+## `POST /game/pgn`
+
+Loads a PGN replay and places the shared game into replay mode at the **start position**.
+
+### Request body
+
+```json
+{
+  "pgn": "1. e4 e5 2. Nf3 Nc6"
+}
+```
+
+### Example
+
+```bash
+curl -X POST http://127.0.0.1:8080/game/pgn \
+  -H "Content-Type: application/json" \
+  -d '{"pgn":"1. e4 e5 2. Nf3 Nc6"}'
+```
+
+### Success response
+
+Returns the `GameStateResponse` at replay index `0`.
+
+### Notes
+
+- this endpoint uses replay mode, not final-state PGN import
+- after loading, `GET /game/replay` reports `active = true`
+- replay stepping can then be done with the replay navigation endpoints
+
+### Status codes
+
+- `200 OK`
+- `400 Bad Request`
+
+## `POST /game/replay/forward`
+
+Advances the active PGN replay by one step.
+
+### Example
+
+```bash
+curl -X POST http://127.0.0.1:8080/game/replay/forward
+```
+
+### Success response
+
+Returns the updated `GameStateResponse` for the next replay state.
+
+### Status codes
+
+- `200 OK`
+- `409 Conflict`
+
+## `POST /game/replay/backward`
+
+Moves the active PGN replay back by one step.
+
+### Example
+
+```bash
+curl -X POST http://127.0.0.1:8080/game/replay/backward
+```
+
+### Success response
+
+Returns the updated `GameStateResponse` for the previous replay state.
+
+### Status codes
+
+- `200 OK`
+- `409 Conflict`
+
 ## `POST /game/move`
 
 Applies a move to the current shared game.
@@ -483,6 +648,10 @@ Response:
   - successful health check
   - successful game creation/reset
   - successful board/status fetch
+  - successful replay status fetch
+  - successful FEN load
+  - successful PGN replay load
+  - successful replay step
   - successful move
 
 - `400 Bad Request`
@@ -490,10 +659,16 @@ Response:
   - invalid `botPlays` or `modeledSide` values
   - unknown bot type when creating a configured game
   - malformed JSON
+  - missing or blank `fen`
+  - invalid FEN input
+  - missing or blank `pgn`
+  - invalid PGN input
   - missing or blank `uci`
   - invalid move syntax
 
 - `409 Conflict`
+  - replay step attempted without an active replay
+  - replay step attempted past the start or end of the replay
   - illegal move
   - move attempted after game is already over
 
