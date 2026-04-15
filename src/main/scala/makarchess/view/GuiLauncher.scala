@@ -13,29 +13,19 @@ object GuiLauncher:
 
   @volatile private var started: Boolean = false
 
+  private def showWindow(controller: ChessController): Unit =
+    val gui = GuiView(controller)
+    val stage = new Stage()
+    stage.setTitle("MaKarChess")
+    stage.setScene(new Scene(gui.root, 630, 780))
+    stage.show()
+    controller.model.notifyObservers
+
   def start(controller: ChessController): Unit =
     Logger.getLogger("com.sun.javafx.application.PlatformImpl").setLevel(Level.SEVERE)
 
     if !started then
       started = true
-      val t = new Thread(() =>
-        JfxPlatform.startup(() =>
-          val gui = GuiView(controller)
-          val stage = new Stage()
-          stage.setTitle("MaKarChess")
-          stage.setScene(new Scene(gui.root, 630, 780))
-          stage.show()
-          controller.model.notifyObservers
-        )
-      )
-      t.setDaemon(false)
-      t.start()
+      JfxPlatform.startup(() => showWindow(controller))
     else
-      JfxPlatform.runLater(() =>
-        val gui = GuiView(controller)
-        val stage = new Stage()
-        stage.setTitle("MaKarChess")
-        stage.setScene(new Scene(gui.root, 630, 780))
-        stage.show()
-        controller.model.notifyObservers
-      )
+      JfxPlatform.runLater(() => showWindow(controller))

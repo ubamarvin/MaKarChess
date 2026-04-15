@@ -153,6 +153,27 @@ class ApiRoutesSpec extends CatsEffectSuite:
       assertEquals(backwardJson.hcursor.get[String]("sideToMove"), Right("White"))
   }
 
+  test("POST /game/replay/start and end jump to replay boundaries") {
+    val api = app
+    val load = Request[IO](POST, uri = uri"/game/pgn").withEntity(
+      parse("""{"pgn":"1. e4 e5 2. Nf3 Nc6"}""").toOption.get
+    )
+    val end = Request[IO](POST, uri = uri"/game/replay/end")
+    val start = Request[IO](POST, uri = uri"/game/replay/start")
+
+    for
+      _ <- api.run(load)
+      endResponse <- api.run(end)
+      endJson <- endResponse.as[Json]
+      startResponse <- api.run(start)
+      startJson <- startResponse.as[Json]
+    yield
+      assertEquals(endResponse.status, Status.Ok)
+      assertEquals(endJson.hcursor.get[String]("sideToMove"), Right("White"))
+      assertEquals(startResponse.status, Status.Ok)
+      assertEquals(startJson.hcursor.get[String]("sideToMove"), Right("White"))
+  }
+
   test("POST /game/replay/forward without active replay returns 409") {
     app.run(Request[IO](POST, uri = uri"/game/replay/forward")).flatMap { response =>
       response.as[Json].map { json =>
@@ -178,6 +199,21 @@ class ApiRoutesSpec extends CatsEffectSuite:
     yield
       assertEquals(replayResponse.status, Status.Ok)
       assertEquals(replayJson.hcursor.get[Boolean]("active"), Right(false))
+  }
+
+  test("GET /game/status returns move history and current PGN") {
+    val api = app
+    val move = Request[IO](POST, uri = uri"/game/move").withEntity(parse("""{"uci":"e2e4"}""").toOption.get)
+    val status = Request[IO](GET, uri = uri"/game/status")
+
+    for
+      _ <- api.run(move)
+      response <- api.run(status)
+      json <- response.as[Json]
+    yield
+      assertEquals(response.status, Status.Ok)
+      assertEquals(json.hcursor.get[String]("currentPgn"), Right("1. e4"))
+      assertEquals(json.hcursor.get[List[String]]("moveHistory"), Right(List("e4")))
   }
 
   test("POST /game/move applies a legal move and returns updated state") {

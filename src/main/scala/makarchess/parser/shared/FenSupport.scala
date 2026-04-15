@@ -19,7 +19,7 @@ object FenSupport:
       halfmoveClock <- parseInt(halfmove, "halfmove clock")
       fullmoveNumber <- parseInt(fullmove, "fullmove number")
     yield Fen(board, sideToMove, castlingRights, enPassantSquare, halfmoveClock, fullmoveNumber)
-
+  //Zerlegt die Eingabe in einzelne Felder und erstellt daraus eine gültige Brettstellung
   def renderFen(fen: Fen): String =
     val placement =
       (8 to 1 by -1).map { rank =>

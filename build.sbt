@@ -1,10 +1,17 @@
 val scala3Version = "3.8.2"
 
 lazy val osName = System.getProperty("os.name").toLowerCase
+lazy val osArch = System.getProperty("os.arch").toLowerCase
 lazy val platform =
   if (osName.contains("win")) "win"
+  else if (osName.contains("mac") && (osArch.contains("aarch64") || osArch.contains("arm64"))) "mac-aarch64"
   else if (osName.contains("mac")) "mac"
+  else if (osArch.contains("aarch64") || osArch.contains("arm64")) "linux-aarch64"
   else "linux"
+
+lazy val macRunOptions =
+  if (osName.contains("mac")) Seq("-XstartOnFirstThread")
+  else Seq.empty
 
 lazy val root = project
   .in(file("."))
@@ -13,6 +20,22 @@ lazy val root = project
     version := "0.1.0-SNAPSHOT",
 
     scalaVersion := scala3Version,
+
+    Compile / run / fork := true,
+
+    Compile / run / javaOptions ++= macRunOptions ++ Seq("-Djavafx.cachedir=target/javafx-cache"),
+
+    Compile / run / fullClasspath := {
+      val cp = (Runtime / fullClasspath).value
+      val isMacArm = osName.contains("mac") && (osArch.contains("aarch64") || osArch.contains("arm64"))
+      if (isMacArm)
+        cp.filterNot { attributed =>
+          val name = attributed.data.getName
+          (name.startsWith("javafx-") && name.endsWith("-mac.jar")) ||
+          (name.startsWith("javafx-") && name.matches("javafx-.*-21\\.0\\.2\\.jar"))
+        }
+      else cp
+    },
 
     scalacOptions ++= Seq(
       "-Wconf:msg=Implicit parameters should be provided with a `using` clause:s"
@@ -36,6 +59,8 @@ lazy val root = project
       "org.scalafx" %% "scalafx" % "21.0.0-R32",
       "org.openjfx" % "javafx-base" % "21.0.2" classifier platform,
       "org.openjfx" % "javafx-controls" % "21.0.2" classifier platform,
-      "org.openjfx" % "javafx-graphics" % "21.0.2" classifier platform
+      "org.openjfx" % "javafx-graphics" % "21.0.2" classifier platform,
+      "org.openjfx" % "javafx-web" % "21.0.2" classifier platform,
+      "org.openjfx" % "javafx-swing" % "21.0.2" classifier platform
     )
   )

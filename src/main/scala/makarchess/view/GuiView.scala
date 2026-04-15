@@ -9,7 +9,7 @@ import scalafx.Includes.*
 import scalafx.application.Platform
 import scalafx.geometry.Insets
 import scalafx.scene.Parent
-import scalafx.scene.control.{Button, Label, TextField}
+import scalafx.scene.control.{Button, Label, TextArea, TextField}
 import scalafx.scene.layout.{BorderPane, GridPane, HBox, StackPane, VBox}
 import scalafx.scene.paint.Color as SColor
 import scalafx.scene.shape.Rectangle
@@ -34,10 +34,18 @@ final class GuiView(controller: ChessController) extends Observer:
 
   private val fenButton = new Button("Load FEN")
 
-  private val pgnField = new TextField:
+  private val pgnArea = new TextArea:
     promptText = "PGN string"
+    prefRowCount = 8
+    wrapText = true
 
   private val pgnButton = new Button("Load PGN")
+
+  private val moveHistoryArea = new TextArea:
+    editable = false
+    focusTraversable = false
+    prefRowCount = 8
+    wrapText = true
 
   private val fileField = new TextField:
     promptText = "/path/to/file.fen or .pgn"
@@ -74,14 +82,26 @@ final class GuiView(controller: ChessController) extends Observer:
         new HBox(8) {
           children = Seq(new Label("FEN:"), fenField, fenButton)
         },
-        new HBox(8) {
-          children = Seq(new Label("PGN:"), pgnField, pgnButton)
+        new VBox(6) {
+          children = Seq(
+            new Label("PGN:"),
+            pgnArea,
+            new HBox(8) {
+              children = Seq(pgnButton)
+            }
+          )
         },
         new HBox(8) {
           children = Seq(new Label("File:"), fileField, fenFileButton, pgnFileButton)
         },
         new HBox(8) {
           children = Seq(new Label("Replay:"), replayBackButton, replayForwardButton, replayLabel)
+        },
+        new VBox(6) {
+          children = Seq(
+            new Label("PGN Moves:"),
+            moveHistoryArea
+          )
         }
       )
     }
@@ -101,9 +121,6 @@ final class GuiView(controller: ChessController) extends Observer:
     override def handle(event: JfxActionEvent): Unit = submitFen()
 
   pgnButton.onAction = new EventHandler[JfxActionEvent]:
-    override def handle(event: JfxActionEvent): Unit = submitPgn()
-
-  pgnField.onAction = new EventHandler[JfxActionEvent]:
     override def handle(event: JfxActionEvent): Unit = submitPgn()
 
   fenFileButton.onAction = new EventHandler[JfxActionEvent]:
@@ -143,14 +160,13 @@ final class GuiView(controller: ChessController) extends Observer:
           messageLabel.text = err
 
   private def submitPgn(): Unit =
-    val raw = pgnField.text.value
+    val raw = pgnArea.text.value
     val pgn = if raw == null then "" else raw.trim
     if pgn.nonEmpty then
       controller.loadReplayFromPgnString(pgn) match
         case Right(_) =>
           selectedFrom = None
           messageLabel.text = "PGN replay loaded."
-          pgnField.text = ""
         case Left(err) =>
           messageLabel.text = err
 
@@ -203,6 +219,10 @@ final class GuiView(controller: ChessController) extends Observer:
         else "Replay: inactive"
       replayBackButton.disable = !controller.hasActiveReplay || controller.replayIndex.contains(0)
       replayForwardButton.disable = !controller.hasActiveReplay || controller.replayIndex == controller.replayLength
+      pgnArea.text = controller.currentPgnText
+      moveHistoryArea.text = controller.moveHistory.grouped(2).zipWithIndex.map { case (pair, index) =>
+        s"${index + 1}. ${pair.mkString(" ")}"
+      }.mkString("\n")
 
       renderBoard(controller.model.chessState)
     }

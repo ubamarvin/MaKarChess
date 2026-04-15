@@ -58,6 +58,11 @@ textarea {
   min-height: 4.4rem;
 }
 
+textarea[readonly] {
+  background: #171b24;
+  color: #dce5f7;
+}
+
 label {
   display: grid;
   gap: 0.35rem;
@@ -116,7 +121,9 @@ dt {
 }
 
 .button-row {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
 }
 
 .move-form {
@@ -133,6 +140,12 @@ dt {
 
 .import-button-row button {
   justify-self: stretch;
+}
+
+.replay-controls {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.55rem;
 }
 
 .status-grid {
@@ -266,5 +279,9 @@ label span,
 
   .button-row {
     grid-template-columns: 1fr;
+  }
+
+  .replay-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

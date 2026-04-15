@@ -3,51 +3,135 @@ import { squareToWorld } from "./board.js";
 
 let piecesGroup = null;
 
-const whiteMaterial = new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.55, metalness: 0.15 });
-const blackMaterial = new THREE.MeshStandardMaterial({ color: 0x202632, roughness: 0.45, metalness: 0.2 });
+const whiteMaterial = new THREE.MeshStandardMaterial({
+  color: 0xf4f1e8,
+  roughness: 0.38,
+  metalness: 0.08
+});
+
+const blackMaterial = new THREE.MeshStandardMaterial({
+  color: 0x1e2430,
+  roughness: 0.3,
+  metalness: 0.12
+});
 
 function materialFor(color) {
   return color === "White" ? whiteMaterial : blackMaterial;
 }
 
+function addMesh(group, geometry, material, y, options = {}) {
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.y = y;
+  if (options.rotationX) {
+    mesh.rotation.x = options.rotationX;
+  }
+  if (options.rotationY) {
+    mesh.rotation.y = options.rotationY;
+  }
+  if (options.rotationZ) {
+    mesh.rotation.z = options.rotationZ;
+  }
+  if (options.x) {
+    mesh.position.x = options.x;
+  }
+  if (options.z) {
+    mesh.position.z = options.z;
+  }
+  group.add(mesh);
+  return mesh;
+}
+
+function createBase(group, material, bodyHeight, baseRadius = 0.33, footRadius = 0.4) {
+  addMesh(group, new THREE.CylinderGeometry(footRadius, footRadius * 0.92, 0.1, 32), material, 0.05);
+  addMesh(group, new THREE.TorusGeometry(baseRadius, 0.045, 18, 42), material, 0.11, { rotationX: Math.PI / 2 });
+  addMesh(group, new THREE.CylinderGeometry(baseRadius * 0.92, baseRadius * 0.78, bodyHeight, 28), material, 0.12 + bodyHeight / 2);
+}
+
 function createPawn(material) {
-  return new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 0.65, 24), material);
+  const group = new THREE.Group();
+  createBase(group, material, 0.42, 0.22, 0.31);
+  addMesh(group, new THREE.SphereGeometry(0.16, 24, 20), material, 0.72);
+  return group;
 }
 
 function createRook(material) {
-  return new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.7, 0.56), material);
+  const group = new THREE.Group();
+  createBase(group, material, 0.58, 0.28, 0.34);
+  addMesh(group, new THREE.CylinderGeometry(0.21, 0.24, 0.18, 24), material, 0.86);
+  addMesh(group, new THREE.CylinderGeometry(0.3, 0.28, 0.1, 24), material, 1.0);
+
+  for (let index = 0; index < 4; index += 1) {
+    const angle = (index / 4) * Math.PI * 2;
+    addMesh(group, new THREE.BoxGeometry(0.1, 0.12, 0.12), material, 1.1, {
+      x: Math.cos(angle) * 0.2,
+      z: Math.sin(angle) * 0.2
+    });
+  }
+
+  return group;
 }
 
 function createKnight(material) {
-  return new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.8, 4), material);
+  const group = new THREE.Group();
+  createBase(group, material, 0.54, 0.27, 0.34);
+  addMesh(group, new THREE.CylinderGeometry(0.16, 0.24, 0.28, 20), material, 0.82);
+  addMesh(group, new THREE.BoxGeometry(0.24, 0.52, 0.16), material, 1.0, {
+    x: 0.03,
+    rotationZ: -0.3
+  });
+  addMesh(group, new THREE.BoxGeometry(0.28, 0.24, 0.18), material, 1.22, {
+    x: 0.12,
+    rotationZ: 0.4
+  });
+  addMesh(group, new THREE.ConeGeometry(0.06, 0.18, 4), material, 1.4, {
+    x: 0.05,
+    z: 0.05,
+    rotationZ: -0.2
+  });
+  addMesh(group, new THREE.ConeGeometry(0.06, 0.18, 4), material, 1.38, {
+    x: -0.03,
+    z: -0.01,
+    rotationZ: -0.45
+  });
+  return group;
 }
 
 function createBishop(material) {
   const group = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 0.72, 20), material);
-  const top = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.34, 18), material);
-  top.position.y = 0.48;
-  group.add(body, top);
+  createBase(group, material, 0.7, 0.24, 0.33);
+  addMesh(group, new THREE.SphereGeometry(0.19, 24, 20), material, 1.0);
+  addMesh(group, new THREE.ConeGeometry(0.11, 0.28, 20), material, 1.25);
+  addMesh(group, new THREE.BoxGeometry(0.05, 0.22, 0.18), material, 1.07, {
+    rotationZ: 0.5
+  });
   return group;
 }
 
 function createQueen(material) {
   const group = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.31, 0.88, 20), material);
-  const crown = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.35, 18), material);
-  crown.position.y = 0.6;
-  group.add(body, crown);
+  createBase(group, material, 0.78, 0.28, 0.36);
+  addMesh(group, new THREE.SphereGeometry(0.18, 24, 20), material, 1.1);
+  addMesh(group, new THREE.CylinderGeometry(0.14, 0.16, 0.12, 20), material, 1.25);
+
+  for (let index = 0; index < 5; index += 1) {
+    const angle = (index / 5) * Math.PI * 2;
+    addMesh(group, new THREE.SphereGeometry(0.055, 16, 12), material, 1.34, {
+      x: Math.cos(angle) * 0.15,
+      z: Math.sin(angle) * 0.15
+    });
+  }
+
+  addMesh(group, new THREE.SphereGeometry(0.07, 16, 12), material, 1.36);
   return group;
 }
 
 function createKing(material) {
   const group = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.32, 1.0, 20), material);
-  const top = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.32, 0.12), material);
-  top.position.y = 0.67;
-  const cross = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.08, 0.08), material);
-  cross.position.y = 0.67;
-  group.add(body, top, cross);
+  createBase(group, material, 0.88, 0.29, 0.37);
+  addMesh(group, new THREE.SphereGeometry(0.16, 24, 20), material, 1.2);
+  addMesh(group, new THREE.CylinderGeometry(0.08, 0.08, 0.22, 16), material, 1.4);
+  addMesh(group, new THREE.BoxGeometry(0.26, 0.06, 0.08), material, 1.48);
+  addMesh(group, new THREE.BoxGeometry(0.08, 0.24, 0.08), material, 1.48);
   return group;
 }
 
@@ -93,10 +177,13 @@ export function renderPieces(scene, boardState) {
     const { position, piece } = occupiedSquare;
     const mesh = createPieceMesh(piece);
     const { x, z } = squareToWorld(position.file, position.rank);
-    mesh.position.set(x, 0.52, z);
-    mesh.castShadow = true;
+    mesh.position.set(x, 0.11, z);
+
     mesh.traverse((child) => {
-      child.castShadow = true;
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
       child.userData = {
         type: "piece",
         color: piece.color,
@@ -106,6 +193,7 @@ export function renderPieces(scene, boardState) {
         rank: position.rank
       };
     });
+
     piecesGroup.add(mesh);
   }
 }

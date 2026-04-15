@@ -1,4 +1,14 @@
-const API_BASE = "http://127.0.0.1:8080";
+const DEFAULT_API_BASE = "http://127.0.0.1:8080";
+
+const API_BASE = (() => {
+  const browserBase =
+    typeof window !== "undefined" &&
+    /^(127\.0\.0\.1|localhost):8080$/.test(window.location.host)
+      ? window.location.origin
+      : null;
+
+  return browserBase || DEFAULT_API_BASE;
+})();
 
 class ApiClientError extends Error {
   constructor(message, status = 0, details = null) {
@@ -98,6 +108,14 @@ export function replayForward() {
 
 export function replayBackward() {
   return request("/game/replay/backward", buildJsonOptions("POST"));
+}
+
+export function replayStart() {
+  return request("/game/replay/start", buildJsonOptions("POST"));
+}
+
+export function replayEnd() {
+  return request("/game/replay/end", buildJsonOptions("POST"));
 }
 
 export function makeMove(uci) {

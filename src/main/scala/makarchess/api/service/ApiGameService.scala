@@ -71,6 +71,16 @@ final class ApiGameService(registry: GameRegistry):
       case Right(state) => Right(toGameStateResponse(state))
       case Left(message) => Left(Conflict(message))
 
+  def replayStart(): Either[ApiError, GameStateResponse] =
+    registry.currentController.jumpReplayToStart() match
+      case Right(state) => Right(toGameStateResponse(state))
+      case Left(message) => Left(Conflict(message))
+
+  def replayEnd(): Either[ApiError, GameStateResponse] =
+    registry.currentController.jumpReplayToEnd() match
+      case Right(state) => Right(toGameStateResponse(state))
+      case Left(message) => Left(Conflict(message))
+
   def makeMove(uci: String): Either[ApiError, GameStateResponse] =
     val trimmed = Option(uci).map(_.trim).getOrElse("")
     if trimmed.isEmpty then Left(BadRequest("Move input is required."))
@@ -101,12 +111,15 @@ final class ApiGameService(registry: GameRegistry):
     )
 
   private def toGameStatusResponse(state: ChessState, snapshot: GameSnapshot): GameStatusResponse =
+    val controller = registry.currentController
     GameStatusResponse(
       sideToMove = colorName(state.sideToMove),
       phase = toGamePhaseResponse(state.phase),
       statusLine = snapshot.statusLine,
       currentPlayerLine = snapshot.currentPlayerLine,
-      isCheck = isCheck(state)
+      isCheck = isCheck(state),
+      currentPgn = controller.currentPgnText,
+      moveHistory = controller.moveHistory.toList
     )
 
   private def toPositionResponse(position: Position): PositionResponse =

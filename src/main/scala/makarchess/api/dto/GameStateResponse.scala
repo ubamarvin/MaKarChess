@@ -31,5 +31,7 @@ final case class GameStatusResponse(
     phase: GamePhaseResponse,
     statusLine: String,
     currentPlayerLine: String,
-    isCheck: Boolean
+    isCheck: Boolean,
+    currentPgn: String,
+    moveHistory: List[String]
 )

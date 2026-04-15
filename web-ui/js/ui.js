@@ -12,11 +12,20 @@ export function createUiBindings() {
     resetGameButton: document.getElementById("reset-game-button"),
     uciInput: document.getElementById("uci-input"),
     submitMoveButton: document.getElementById("submit-move-button"),
-    importInput: document.getElementById("import-input"),
+    fenInput: document.getElementById("fen-input"),
+    pgnInput: document.getElementById("pgn-input"),
     loadFenButton: document.getElementById("load-fen-button"),
     loadPgnButton: document.getElementById("load-pgn-button"),
+    clearPgnInputButton: document.getElementById("clear-pgn-input-button"),
+    currentPgnOutput: document.getElementById("current-pgn-output"),
+    copyPgnButton: document.getElementById("copy-pgn-button"),
+    savePgnButton: document.getElementById("save-pgn-button"),
+    moveHistoryOutput: document.getElementById("move-history-output"),
+    replayStartButton: document.getElementById("replay-start-button"),
     replayBackButton: document.getElementById("replay-back-button"),
+    replayPlayButton: document.getElementById("replay-play-button"),
     replayForwardButton: document.getElementById("replay-forward-button"),
+    replayEndButton: document.getElementById("replay-end-button"),
     sideToMove: document.getElementById("side-to-move"),
     phaseTag: document.getElementById("phase-tag"),
     phaseWinner: document.getElementById("phase-winner"),
@@ -71,6 +80,33 @@ export function createUiBindings() {
     elements.selectedSquare.textContent = text || "-";
   }
 
+  function setReplayPlaying(isPlaying) {
+    elements.replayPlayButton.textContent = isPlaying ? "Pause" : "Replay";
+  }
+
+  function setPgnDraft(text) {
+    elements.pgnInput.value = text || "";
+  }
+
+  function setCurrentPgn(text) {
+    elements.currentPgnOutput.value = text || "";
+  }
+
+  function setMoveHistory(moves) {
+    elements.moveHistoryOutput.value = Array.isArray(moves)
+      ? moves
+          .reduce((lines, move, index) => {
+            if (index % 2 === 0) {
+              lines.push(`${Math.floor(index / 2) + 1}. ${move}`);
+            } else {
+              lines[lines.length - 1] = `${lines[lines.length - 1]} ${move}`;
+            }
+            return lines;
+          }, [])
+          .join("\n")
+      : "";
+  }
+
   function openNewGameModal() {
     elements.newGameModal.classList.remove("hidden");
     elements.newGameModal.setAttribute("aria-hidden", "false");
@@ -88,21 +124,25 @@ export function createUiBindings() {
     elements.cancelNewGameButton.disabled = disabled;
     elements.confirmNewGameButton.disabled = disabled;
     elements.resetGameButton.disabled = disabled;
-    if (elements.submitMoveButton) {
-      elements.submitMoveButton.disabled = disabled;
-    }
+    elements.submitMoveButton.disabled = disabled;
     elements.loadFenButton.disabled = disabled;
     elements.loadPgnButton.disabled = disabled;
-    if (elements.uciInput) {
-      elements.uciInput.disabled = disabled;
-    }
-    elements.importInput.disabled = disabled;
+    elements.clearPgnInputButton.disabled = disabled;
+    elements.copyPgnButton.disabled = disabled || !elements.currentPgnOutput.value.trim();
+    elements.savePgnButton.disabled = disabled || !elements.currentPgnOutput.value.trim();
+    elements.uciInput.disabled = disabled;
+    elements.fenInput.disabled = disabled;
+    elements.pgnInput.disabled = disabled;
     elements.botType.disabled = disabled;
     elements.botPlays.disabled = disabled;
     elements.modeledSide.disabled = disabled;
+
     if (disabled) {
+      elements.replayStartButton.disabled = true;
       elements.replayBackButton.disabled = true;
+      elements.replayPlayButton.disabled = true;
       elements.replayForwardButton.disabled = true;
+      elements.replayEndButton.disabled = true;
     }
   }
 
@@ -114,21 +154,37 @@ export function createUiBindings() {
     elements.isCheck.textContent = typeof checkValue === "boolean" ? String(checkValue) : "-";
     elements.statusLine.textContent = status?.statusLine || "-";
     elements.currentPlayerLine.textContent = status?.currentPlayerLine || "-";
+    setCurrentPgn(status?.currentPgn || "");
+    setMoveHistory(status?.moveHistory || []);
+    const hasCurrentPgn = Boolean((status?.currentPgn || "").trim());
+    elements.copyPgnButton.disabled = !hasCurrentPgn;
+    elements.savePgnButton.disabled = !hasCurrentPgn;
   }
 
-  function renderReplayStatus(replay) {
+  function renderReplayStatus(replay, isPlaying = false) {
+    setReplayPlaying(isPlaying);
+
     if (!replay?.active) {
       elements.replayStatus.textContent = "inactive";
+      elements.replayStartButton.disabled = true;
       elements.replayBackButton.disabled = true;
+      elements.replayPlayButton.disabled = true;
       elements.replayForwardButton.disabled = true;
+      elements.replayEndButton.disabled = true;
       return;
     }
 
     const index = replay.index ?? 0;
     const length = replay.length ?? 0;
+    const atStart = index <= 0;
+    const atEnd = index >= length;
+
     elements.replayStatus.textContent = `${index}/${length}`;
-    elements.replayBackButton.disabled = index <= 0;
-    elements.replayForwardButton.disabled = index >= length;
+    elements.replayStartButton.disabled = atStart;
+    elements.replayBackButton.disabled = atStart;
+    elements.replayPlayButton.disabled = atEnd;
+    elements.replayForwardButton.disabled = atEnd;
+    elements.replayEndButton.disabled = atEnd;
   }
 
   return {
@@ -140,6 +196,10 @@ export function createUiBindings() {
     setErrorMessage,
     clearErrorMessage,
     setSelectedSquare,
+    setReplayPlaying,
+    setPgnDraft,
+    setCurrentPgn,
+    setMoveHistory,
     openNewGameModal,
     closeNewGameModal,
     setLoading,

@@ -35,6 +35,8 @@ class ChessController(
 
   private var currentModel: ChessModel = initialModel
   private var activeReplayCursor: Option[PgnReplayCursor] = None
+  private var moveHistoryState: Vector[String] = Vector.empty
+  private var currentPgnTextState: String = ""
 
   private def initialReplayState: ChessState =
     ChessRules.initialState
@@ -52,6 +54,12 @@ class ChessController(
 
   def snapshot: GameSnapshot =
     currentModel.snapshot
+
+  def moveHistory: Vector[String] =
+    moveHistoryState
+
+  def currentPgnText: String =
+    currentPgnTextState
 
   def opponentModelHighlights: Vector[HighlightSquare] =
     opponentModelHighlightsState
@@ -93,6 +101,7 @@ class ChessController(
     currentModel.tryMove(input) match
       case MoveResult.Err(err) => MoveResult.Err(err)
       case MoveResult.Ok(next) =>
+        appendMoveHistoryFromUci(input)
         clearReplayState()
         currentModel = next
         currentModel.notifyObservers
@@ -103,6 +112,8 @@ class ChessController(
       fen <- fenParser.parse(input)
       state <- Fen.toChessState(fen)
     yield
+      moveHistoryState = Vector.empty
+      currentPgnTextState = ""
       clearReplayState()
       replaceModelState(state)
 
@@ -111,6 +122,8 @@ class ChessController(
       fen <- fenFileService.load(path)
       state <- Fen.toChessState(fen)
     yield
+      moveHistoryState = Vector.empty
+      currentPgnTextState = ""
       clearReplayState()
       replaceModelState(state)
 
@@ -120,6 +133,8 @@ class ChessController(
       cursor <- PgnReplay.buildCursor(initialReplayState, pgn.moves)
       state <- cursor.jumpToEnd().currentState
     yield
+      moveHistoryState = pgn.moves.toVector
+      currentPgnTextState = input.trim
       activeReplayCursor = Some(cursor.jumpToEnd())
       replaceModelState(state)
 
@@ -129,6 +144,8 @@ class ChessController(
       cursor <- PgnReplay.buildCursor(initialReplayState, pgn.moves)
       state <- cursor.jumpToEnd().currentState
     yield
+      moveHistoryState = pgn.moves.toVector
+      currentPgnTextState = pgnParser.render(pgn)
       activeReplayCursor = Some(cursor.jumpToEnd())
       replaceModelState(state)
 
@@ -155,9 +172,12 @@ class ChessController(
 
   def loadReplayFromPgnString(input: String): Either[String, ChessState] =
     for
+      pgn <- pgnParser.parse(input)
       cursor <- replayPgnFromString(input)
       state <- cursor.currentState
     yield
+      moveHistoryState = pgn.moves.toVector
+      currentPgnTextState = input.trim
       activeReplayCursor = Some(cursor)
       replaceModelState(state)
 
@@ -167,6 +187,8 @@ class ChessController(
       cursor <- PgnReplay.buildCursor(initialReplayState, pgn.moves)
       state <- cursor.currentState
     yield
+      moveHistoryState = pgn.moves.toVector
+      currentPgnTextState = pgnParser.render(pgn)
       activeReplayCursor = Some(cursor)
       replaceModelState(state)
 
@@ -192,6 +214,26 @@ class ChessController(
           activeReplayCursor = Some(nextCursor)
           replaceModelState(state)
 
+  def jumpReplayToStart(): Either[String, ChessState] =
+    activeReplayCursor match
+      case None => Left("No PGN replay loaded.")
+      case Some(cursor) =>
+        val nextCursor = cursor.jumpToStart()
+        nextCursor.currentState.map { state =>
+          activeReplayCursor = Some(nextCursor)
+          replaceModelState(state)
+        }
+
+  def jumpReplayToEnd(): Either[String, ChessState] =
+    activeReplayCursor match
+      case None => Left("No PGN replay loaded.")
+      case Some(cursor) =>
+        val nextCursor = cursor.jumpToEnd()
+        nextCursor.currentState.map { state =>
+          activeReplayCursor = Some(nextCursor)
+          replaceModelState(state)
+        }
+
   def saveCurrentStateToJson(): Either[String, Unit] =
     gameStateJsonService.save(currentModel.chessState)
 
@@ -199,11 +241,15 @@ class ChessController(
     gameStateJsonService.load().map(replaceModelState)
 
   def startNewGame(): Unit =
+    moveHistoryState = Vector.empty
+    currentPgnTextState = ""
     clearReplayState()
     currentModel = currentModel.restart()
     currentModel.notifyObservers
 
   def restartGame(): Unit =
+    moveHistoryState = Vector.empty
+    currentPgnTextState = ""
     clearReplayState()
     currentModel = currentModel.restart()
     currentModel.notifyObservers
@@ -238,6 +284,7 @@ class ChessController(
     currentModel.tryMove(uci) match
       case MoveResult.Err(_) => ()
       case MoveResult.Ok(next) =>
+        appendMoveHistoryFromUci(uci)
         clearReplayState()
         currentModel = next
         currentModel.notifyObservers
@@ -256,6 +303,20 @@ class ChessController(
 
   private def clearReplayState(): Unit =
     activeReplayCursor = None
+
+  private def appendMoveHistoryFromUci(input: String): Unit =
+    ChessRules.parseUci(input) match
+      case MoveResult.Ok(move) =>
+        val san = PgnReplay.renderSan(currentModel.chessState, move)
+        moveHistoryState = moveHistoryState :+ san
+        currentPgnTextState = formatMoveHistory(moveHistoryState)
+      case MoveResult.Err(_) =>
+        ()
+
+  private def formatMoveHistory(moves: Vector[String]): String =
+    moves.grouped(2).zipWithIndex.map { case (pair, index) =>
+      s"${index + 1}. ${pair.mkString(" ")}"
+    }.mkString("\n")
 
   private def replaceModelState(state: ChessState): ChessState =
     currentModel = currentModel.withState(state)

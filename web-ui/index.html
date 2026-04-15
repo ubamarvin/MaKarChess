@@ -55,22 +55,50 @@
           <button id="reset-game-button">Reset Game</button>
         </div>
 
-        
+        <div class="panel-section move-form">
+          <label>
+            <span>Play Move (UCI)</span>
+            <input id="uci-input" type="text" placeholder="e2e4 or e7e8q" />
+          </label>
+          <button id="submit-move-button">Submit Move</button>
+        </div>
 
         <div class="panel-section move-form">
           <label>
-            <span>Import FEN / PGN</span>
-            <textarea id="import-input" rows="5" placeholder="FEN: 4k3/8/8/8/8/8/8/4K3 w - - 0 1&#10;PGN: 1. e4 e5 2. Nf3 Nc6"></textarea>
+            <span>FEN Position</span>
+            <textarea id="fen-input" rows="3" placeholder="4k3/8/8/8/8/8/8/4K3 w - - 0 1"></textarea>
+          </label>
+          <button id="load-fen-button">Load FEN</button>
+        </div>
+
+        <div class="panel-section move-form">
+          <label>
+            <span>PGN Replay Input</span>
+            <textarea id="pgn-input" rows="7" placeholder="1. e4 e5 2. Nf3 Nc6"></textarea>
           </label>
           <div class="button-row import-button-row">
-            <button id="load-fen-button">Load FEN</button>
-            <button id="load-pgn-button">Load PGN</button>
+            <button id="load-pgn-button">Load Replay</button>
+            <button id="clear-pgn-input-button" class="secondary-button">Clear Input</button>
           </div>
         </div>
 
-        <div class="panel-section button-row">
-          <button id="replay-back-button">Replay Back</button>
-          <button id="replay-forward-button">Replay Forward</button>
+        <div class="panel-section move-form">
+          <label>
+            <span>Saved Moves / Current PGN</span>
+            <textarea id="current-pgn-output" rows="7" readonly placeholder="Your current moves will appear here automatically."></textarea>
+          </label>
+          <div class="button-row import-button-row">
+            <button id="copy-pgn-button" class="secondary-button">Copy PGN</button>
+            <button id="save-pgn-button" class="secondary-button">Save PGN</button>
+          </div>
+        </div>
+
+        <div class="panel-section replay-controls">
+          <button id="replay-start-button" class="secondary-button">Start</button>
+          <button id="replay-back-button" class="secondary-button">Back</button>
+          <button id="replay-play-button">Replay</button>
+          <button id="replay-forward-button" class="secondary-button">Forward</button>
+          <button id="replay-end-button" class="secondary-button">End</button>
         </div>
 
         <div class="panel-section">
@@ -85,6 +113,13 @@
             <div><dt>Replay</dt><dd id="replay-status">inactive</dd></div>
             <div><dt>Selected Square</dt><dd id="selected-square">-</dd></div>
           </dl>
+        </div>
+
+        <div class="panel-section move-form">
+          <label>
+            <span>Move List</span>
+            <textarea id="move-history-output" rows="6" readonly placeholder="Moves appear here after loading a replay or playing a game."></textarea>
+          </label>
         </div>
 
         <div class="panel-section message-stack">

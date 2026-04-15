@@ -66,6 +66,12 @@ final class GameRoutes[F[_]: Concurrent](service: ApiGameService) extends Http4s
     case POST -> Root / "game" / "replay" / "backward" =>
       respond(service.replayBackward())
 
+    case POST -> Root / "game" / "replay" / "start" =>
+      respond(service.replayStart())
+
+    case POST -> Root / "game" / "replay" / "end" =>
+      respond(service.replayEnd())
+
     case req @ POST -> Root / "game" / "move" =>
       req.attemptAs[MoveRequest].value.flatMap {
         case Right(moveRequest) => respond(service.makeMove(moveRequest.uci))

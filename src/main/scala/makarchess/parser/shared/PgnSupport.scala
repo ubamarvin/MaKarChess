@@ -13,7 +13,7 @@ object PgnSupport:
         case Some(value) if isResult(value) => (tokens.dropRight(1), Some(value))
         case _                              => (tokens, tags.get("Result"))
     Right(PgnGame(tags, moveTokens, resultToken))
-
+// liest zuerst Metadaten und dann die Zugfolge, daraus entsteht eine ganze Partie  1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6
   def renderPgn(game: PgnGame): String =
     val tags =
       if game.tags.isEmpty then ""
