@@ -1,0 +1,43 @@
+[Event "Example Game"]
+[Site "Local"]
+[Date "2024.01.01"]
+[Round "1"]
+[White "Player1"]
+[Black "Player2"]
+[Result "1-0"]
+
+1. e4 e5 
+2. Nf3 Nc6 
+3. Bb5 a6 
+4. Ba4 Nf6 
+5. O-O Be7 
+6. Re1 b5 
+7. Bb3 d6 
+8. c3 O-O 
+9. h3 Nb8 
+10. d4 Nbd7 
+11. c4 c6 
+12. Nc3 Qc7 
+13. Be3 Bb7 
+14. Rc1 Rfe8 
+15. cxb5 axb5 
+16. Nxb5 Qb8 
+17. Nc3 Bf8 
+18. Ng5 d5 
+19. exd5 cxd5 
+20. dxe5 Nxe5 
+21. Nxd5 Nxd5 
+22. Bxd5 Bxd5 
+23. Qxd5 h6 
+24. Bf4 hxg5 
+25. Bxe5 Qa7 
+26. Rc7 Re7 
+27. Rxe7 Qxe7 
+28. Qxa8 f6 
+29. Bc3 Qc5 
+30. Re8 Kf7 
+31. Rc8 Qd6 
+32. Qe4 Qd1+ 
+33. Kh2 Bd6+ 
+34. g3 Qf1 
+35. Qe8# 1-0

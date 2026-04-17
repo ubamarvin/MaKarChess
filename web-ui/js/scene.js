@@ -12,6 +12,7 @@ export function createScene(container) {
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(container.clientWidth, container.clientHeight);
   renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -27,6 +28,18 @@ export function createScene(container) {
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1.8);
   directionalLight.position.set(8, 16, 10);
   directionalLight.castShadow = true;
+  directionalLight.target.position.set(0, 0, 0);
+  directionalLight.shadow.mapSize.width = 2048;
+  directionalLight.shadow.mapSize.height = 2048;
+  directionalLight.shadow.bias = -0.0008;
+  directionalLight.shadow.normalBias = 0.02;
+  directionalLight.shadow.camera.left = -8;
+  directionalLight.shadow.camera.right = 8;
+  directionalLight.shadow.camera.top = 8;
+  directionalLight.shadow.camera.bottom = -8;
+  directionalLight.shadow.camera.near = 1;
+  directionalLight.shadow.camera.far = 40;
+  scene.add(directionalLight.target);
   scene.add(directionalLight);
 
   const fillLight = new THREE.PointLight(0x8fb4ff, 0.6);

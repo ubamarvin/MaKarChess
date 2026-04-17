@@ -51,17 +51,19 @@ Run that command in:
 /home/marvin/SA/makarchess/web-ui
 ```
 
-Then open the frontend in your browser:
+Then open the frontend in your browser at:
 
 ```text
-http://127.0.0.1:4173
+http://127.0.0.1:4173/
 ```
+
+Use `127.0.0.1` in the browser address bar, not `0.0.0.0`.
 
 ## First usage flow
 
 1. Start the backend server.
 2. Start the static web server in `web-ui/`.
-3. Open `http://127.0.0.1:4173` in your browser.
+3. Open `http://127.0.0.1:4173/` in your browser.
 4. Wait for the backend status message.
 5. Click `New Game`.
 6. Play by either:
