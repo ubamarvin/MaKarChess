@@ -19,3 +19,14 @@ object JsonCodecs:
   given Codec[GameStateResponse] = deriveCodec
   given Codec[GameStatusResponse] = deriveCodec
   given Codec[ReplayStatusResponse] = deriveCodec
+  given Codec[BotTypesResponse] = deriveCodec
+  given Codec[BotMoveRequest] = deriveCodec
+  given Codec[BotMoveResponse] = deriveCodec
+  given Codec[AnalysisRequest] = deriveCodec
+  given Codec[MaterialResponse] = deriveCodec
+  given Codec[AnalysisResponse] = deriveCodec
+  given Codec[RankingPlayerRequest] = deriveCodec
+  given Codec[RankingResultRequest] = deriveCodec
+  given Codec[RankingEntryResponse] = deriveCodec
+  given Codec[RankingResponse] = deriveCodec
+  given Codec[RankingResultResponse] = deriveCodec

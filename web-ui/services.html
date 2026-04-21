@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MaKarChess Microservices API</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body class="services-page api-catalog-page">
+    <main class="api-catalog-shell">
+      <header class="api-catalog-header">
+        <div>
+          <p class="api-kicker">MaKarChess Service Hub</p>
+          <h1>Microservices API</h1>
+          <p>Alle HTTP-Schnittstellen der laufenden MaKarChess Services als Live-Demo.</p>
+        </div>
+        <a class="catalog-back-link" href="./index.html">Zur&uuml;ck zum Board</a>
+      </header>
+
+      <section class="api-card-grid" aria-label="Microservices API cards">
+        <article class="api-service-card service-game">
+          <header class="api-service-header">
+            <div>
+              <h2><span aria-hidden="true">♔</span> Game Service <code>:8080</code></h2>
+            </div>
+            <span class="online-indicator"><span></span>online</span>
+          </header>
+
+          <p class="api-service-description">
+            Verwaltet Spielzustand, Board, Moves, FEN/PGN Import und Replay-Funktionen.
+          </p>
+
+          <div class="api-metric-row">
+            <span>state <strong>live</strong></span>
+            <span>moves <strong>legal</strong></span>
+          </div>
+
+          <div class="api-endpoint-list">
+            <button class="api-endpoint-row" data-service-action="health">
+              <span class="method-badge get">GET</span>
+              <code>/health</code>
+              <span>Service Status</span>
+            </button>
+            <button class="api-endpoint-row" data-service-action="game-status">
+              <span class="method-badge get">GET</span>
+              <code>/game/status</code>
+              <span>Aktueller Spielstatus</span>
+            </button>
+            <button class="api-endpoint-row" data-service-action="game-board">
+              <span class="method-badge get">GET</span>
+              <code>/game/board</code>
+              <span>Aktuelles Brett</span>
+            </button>
+            <button class="api-endpoint-row" data-service-action="game-new">
+              <span class="method-badge post">POST</span>
+              <code>/game/new</code>
+              <span>Neues Spiel starten</span>
+            </button>
+            <button class="api-endpoint-row" data-service-action="game-reset">
+              <span class="method-badge post">POST</span>
+              <code>/game/reset</code>
+              <span>Spiel zuruecksetzen</span>
+            </button>
+          </div>
+
+          <footer class="api-service-footer">
+            <span>BASE URL</span>
+            <code>http://localhost:8080</code>
+            <span>PROXY</span>
+            <code>/game-api</code>
+          </footer>
+
+          <pre id="game-service-output" class="api-response-output">Klicke einen Endpoint, um die Antwort zu sehen.</pre>
+        </article>
+
+        <article class="api-service-card service-bot">
+          <header class="api-service-header">
+            <div>
+              <h2><span aria-hidden="true">🤖</span> Bot Service <code>:8080</code></h2>
+            </div>
+            <span class="online-indicator"><span></span>online</span>
+          </header>
+
+          <p class="api-service-description">
+            Berechnet KI-Zuege mit Random, Greedy, Defensive und Aggressive Bots.
+          </p>
+
+          <div class="api-metric-row">
+            <span>bots <strong>4</strong></span>
+            <span>format <strong>UCI</strong></span>
+          </div>
+
+          <label class="api-mini-control">
+            <span>Bot Type</span>
+            <select id="service-bot-type">
+              <option value="random">random</option>
+              <option value="greedy">greedy</option>
+              <option value="defensive">defensive</option>
+              <option value="aggressive">aggressive</option>
+            </select>
+          </label>
+
+          <div class="api-endpoint-list">
+            <button class="api-endpoint-row" data-service-action="bot-types">
+              <span class="method-badge get">GET</span>
+              <code>/bot/types</code>
+              <span>Alle verfuegbaren Bots</span>
+            </button>
+            <button class="api-endpoint-row" data-service-action="bot-move">
+              <span class="method-badge post">POST</span>
+              <code>/bot/move</code>
+              <span>Besten Bot-Zug berechnen</span>
+            </button>
+          </div>
+
+          <footer class="api-service-footer">
+            <span>BASE URL</span>
+            <code>http://localhost:8080</code>
+            <span>PROXY</span>
+            <code>/bot-api</code>
+          </footer>
+
+          <pre id="bot-service-output" class="api-response-output">Klicke einen Endpoint, um die Antwort zu sehen.</pre>
+        </article>
+
+        <article class="api-service-card service-analysis">
+          <header class="api-service-header">
+            <div>
+              <h2><span aria-hidden="true">♜</span> Analysis Service <code>:8080</code></h2>
+            </div>
+            <span class="online-indicator"><span></span>online</span>
+          </header>
+
+          <p class="api-service-description">
+            Bewertet Stellungen: Material, legale Zuege, Schachstatus und beste Captures.
+          </p>
+
+          <div class="api-metric-row">
+            <span>material <strong>39/39</strong></span>
+            <span>moves <strong>20</strong></span>
+          </div>
+
+          <label class="api-mini-control">
+            <span>Optional FEN</span>
+            <textarea id="service-analysis-fen" rows="2" placeholder="Leer lassen fuer aktuelle Stellung"></textarea>
+          </label>
+
+          <div class="api-endpoint-list">
+            <button class="api-endpoint-row" data-service-action="analysis-current">
+              <span class="method-badge get">GET</span>
+              <code>/analysis/current</code>
+              <span>Aktuelle Stellung analysieren</span>
+            </button>
+            <button class="api-endpoint-row" data-service-action="analysis-fen">
+              <span class="method-badge post">POST</span>
+              <code>/analysis</code>
+              <span>FEN oder aktuelle Stellung analysieren</span>
+            </button>
+          </div>
+
+          <footer class="api-service-footer">
+            <span>BASE URL</span>
+            <code>http://localhost:8080</code>
+            <span>PROXY</span>
+            <code>/analysis-api</code>
+          </footer>
+
+          <pre id="analysis-service-output" class="api-response-output">Klicke einen Endpoint, um die Antwort zu sehen.</pre>
+        </article>
+
+        <article class="api-service-card service-ranking">
+          <header class="api-service-header">
+            <div>
+              <h2><span aria-hidden="true">♛</span> Ranking Service <code>:8080</code></h2>
+            </div>
+            <span class="online-indicator"><span></span>online</span>
+          </header>
+
+          <p class="api-service-description">
+            Fuehrt eine Elo-aehnliche Rangliste mit Siegen, Remis, Niederlagen und Rating.
+          </p>
+
+          <div class="api-metric-row">
+            <span>rating <strong>Elo</strong></span>
+            <span>storage <strong>RAM</strong></span>
+          </div>
+
+          <div class="api-ranking-controls">
+            <label class="api-mini-control">
+              <span>White</span>
+              <input id="ranking-white-player" type="text" value="Ada" />
+            </label>
+            <label class="api-mini-control">
+              <span>Black</span>
+              <input id="ranking-black-player" type="text" value="Ben" />
+            </label>
+            <label class="api-mini-control">
+              <span>Result</span>
+              <select id="ranking-result">
+                <option value="white">white wins</option>
+                <option value="black">black wins</option>
+                <option value="draw">draw</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="api-endpoint-list">
+            <button class="api-endpoint-row" data-service-action="ranking-list">
+              <span class="method-badge get">GET</span>
+              <code>/ranking</code>
+              <span>Leaderboard abrufen</span>
+            </button>
+            <button class="api-endpoint-row" data-service-action="ranking-result">
+              <span class="method-badge post">POST</span>
+              <code>/ranking/result</code>
+              <span>Ergebnis eintragen</span>
+            </button>
+          </div>
+
+          <footer class="api-service-footer">
+            <span>BASE URL</span>
+            <code>http://localhost:8080</code>
+            <span>PROXY</span>
+            <code>/ranking-api</code>
+          </footer>
+
+          <pre id="ranking-service-output" class="api-response-output">Klicke einen Endpoint, um die Antwort zu sehen.</pre>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./js/services.js"></script>
+  </body>
+</html>

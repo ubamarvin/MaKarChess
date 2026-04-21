@@ -2,6 +2,9 @@ package makarchess.util.bot
 
 object BotFactory:
 
+  val availableNames: List[String] =
+    List("random", "greedy", "defensive", "aggressive")
+
   def fromName(name: String): Either[String, Bot] =
     name.trim.toLowerCase match
       case "random"     => Right(RandomBot())

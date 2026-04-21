@@ -121,3 +121,31 @@ export function replayEnd() {
 export function makeMove(uci) {
   return request("/game/move", buildJsonOptions("POST", { uci }));
 }
+
+export function getBotTypes() {
+  return request("/bot/types");
+}
+
+export function chooseBotMove(botType, fen = null) {
+  const body = { botType };
+  if (fen) {
+    body.fen = fen;
+  }
+  return request("/bot/move", buildJsonOptions("POST", body));
+}
+
+export function getCurrentAnalysis() {
+  return request("/analysis/current");
+}
+
+export function analyzeFen(fen = null) {
+  return request("/analysis", buildJsonOptions("POST", fen ? { fen } : {}));
+}
+
+export function getRanking() {
+  return request("/ranking");
+}
+
+export function recordRankingResult(whitePlayer, blackPlayer, result) {
+  return request("/ranking/result", buildJsonOptions("POST", { whitePlayer, blackPlayer, result }));
+}
